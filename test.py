@@ -1,14 +1,37 @@
 import os
 import numpy as np
-import tifffile as tiff
 import pandas as pd
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import precision_recall_curve, auc, roc_curve
+import matplotlib.pyplot as plt
+def plot_curve(ax, x, y, thresholds, x_label, y_label, title, metric_label, breakpoints):
+    """Generic function to plot AUPRC or ROC AUC with threshold annotations."""
+    
+    ax.plot(x, y, marker='o', linestyle='-', label=metric_label)
+
+    # Find closest indices for annotation
+    indices = [min(np.argmin(np.abs(x - b)), len(thresholds) - 1) for b in breakpoints]
+
+    # Annotate selected thresholds
+    for i in indices:
+        ax.text(x[i], y[i], f'{thresholds[i]:.4f}', fontsize=8, ha='right')
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.legend()
+    ax.grid()
+
+
 
 # Define paths
-output_data_path = "data"
+note = "WHOLE_IMAGE_GENERATED-MAG1C"
+output_data_path = os.path.join("data", note)
+output_results_path = os.path.join("outputs", note)
+os.makedirs(output_results_path, exist_ok=True)
 filters = ["mf", "ace", "cem", "mag1c"]  # Filter outputs to process
 label_name = "label.npy"
 auprc_scores = {}
+roc_scores = {}
 
 # Get all tile directories
 tile_dirs = sorted([d for d in os.listdir(output_data_path) if os.path.isdir(os.path.join(output_data_path, d))])
@@ -49,15 +72,50 @@ for f in filters:
     ground_truths = np.concatenate(ground_truths)  # Full ground truth mask
     filter_results = np.concatenate(filter_results)  # Full detections
 
-    # Compute AUPRC for the current filter
-    auprc_scores[f] = average_precision_score(ground_truths, filter_results)
-    print(f"AUPRC for {f}: {auprc_scores[f]:.4f}")
+    # Compute Precision-Recall curve and AUPRC
+    precision, recall, thresholds_auprc = precision_recall_curve(ground_truths, filter_results, drop_intermediate=True)
+    auprc = auc(recall, precision)
+    auprc_scores[f] = auprc
+    print(f"AUPRC for {f}: {auprc:.4f}")
 
+    fpr, tpr, thresholds_roc = roc_curve(ground_truths, filter_results, drop_intermediate=True)
+    roc_auc = auc(fpr, tpr)
+    roc_scores[f] = roc_auc
+    print(f"ROC AUC for {f}: {roc_auc:.4f}")
+    
     # Free memory
     del ground_truths, filter_results
+        # Define breakpoints for annotation (evenly spaced recall/FPR values)
+    breakpoints = np.linspace(0, 1, 11)
 
-# Save AUPRC scores to CSV
+    # Create figure with two subplots
+    fig, axes = plt.subplots(2, 1, figsize=(8, 12))
+
+    # Plot AUPRC
+    plot_curve(
+        axes[0], recall, precision, thresholds_auprc,
+        "Recall", "Precision", f"Precision-Recall Curve for {f}",
+        f'{f} (AUPRC = {auprc:.4f})', breakpoints
+    )
+
+    # Plot ROC AUC
+    plot_curve(
+        axes[1], fpr, tpr, thresholds_roc,
+        "False Positive Rate", "True Positive Rate", f"ROC Curve for {f}",
+        f'{f} (ROC AUC = {roc_auc:.4f})', breakpoints
+    )
+
+    # Save the figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_results_path,f"{f}.png"))
+    
+
+# Convert AUPRC and ROC-AUC scores to DataFrames
 auprc_df = pd.DataFrame.from_dict(auprc_scores, orient="index", columns=["AUPRC"])
-auprc_df.to_csv(os.path.join(output_data_path, "auprc_scores.csv"))
+roc_df = pd.DataFrame.from_dict(roc_scores, orient="index", columns=["ROC-AUC"])
 
-print("Processing complete. AUPRC scores saved.")
+# Merge both DataFrames on index (filter name)
+combined_df = pd.concat([auprc_df, roc_df], axis=1)
+
+# Save the combined DataFrame to CSV
+combined_df.to_csv(os.path.join(output_results_path, f"scores.csv"))
