@@ -47,7 +47,7 @@ def load_wavelengths_fwhm(hdr_file):
 
 
 # Define paths
-note = "BY_COLUMNS_STARCOP-MAG1C"
+note = "BY_COLUMNS_GENERATED-MAG1C"
 hdr_file = "aviris_header.hdr"
 csv_path = "../starcop_big/STARCOP_allbands/test.csv"
 input_data_path = "../starcop_big/STARCOP_allbands"
@@ -56,8 +56,9 @@ ch4_transmittance_file = "ang_ch4_unit_3col_425chan.txt"
 wavelengths_range = (2122, 2488)  # MAG1C range used in original STARCOP data.
 COLUMN = True
 USE_MAG1C_TRANSMITTANCE = True
-CREATE_TILE_MAG1C = False
-CREATE_OTHER_FILTERS = True
+CREATE_TILE_MAG1C = True
+CREATE_OTHER_FILTERS = False
+RESUME = False
 # Load the CSV file
 df = pd.read_csv(csv_path)
 STARCOP_BANDS = data_sanity_check(df, input_data_path)
@@ -122,6 +123,18 @@ def init_worker(shared_dict):
     global hyperspectral_image
     hyperspectral_image = shared_dict["hyperspectral"]
 
+# Independent filter processing functions
+def process_mf(idx):
+    """Process a single column for Matched Filter."""
+    return idx, matched_filter(hyperspectral_image[:, idx, :], transmittance_array)
+
+def process_ace(idx):
+    """Process a single column for ACE."""
+    return idx, ace(hyperspectral_image[:, idx, :], transmittance_array)
+
+def process_cem(idx):
+    """Process a single column for CEM."""
+    return idx, cem(hyperspectral_image[:, idx, :], transmittance_array)
 
 def process_column(idx):
     """Process a single column index and return results."""
@@ -138,6 +151,8 @@ def process_tile(row):
     tile_input_folder = os.path.join(input_data_path, tile_id)
     tile_output_folder = os.path.join(output_data_path, tile_id)
     os.makedirs(tile_output_folder, exist_ok=True)
+    if RESUME and set(os.listdir(tile_output_folder)) >= {"ace.npy", "cem.npy", "label.npy", "mag1c.npy", "mf.npy"}:
+        return
 
     # Load hyperspectral images based on wavelength range
     image_bands = []
@@ -184,16 +199,26 @@ def process_tile(row):
             
             with Manager() as manager:
                 shared_dict = manager.dict()
-                shared_dict["hyperspectral"] = hyperspectral_image
+                shared_dict["hyperspectral"] = hyperspectral_image  # Shared memory for HSI data
 
-                # Start multiprocessing with shared dictionary
+                # Create independent pools for MF, ACE, and CEM
                 with Pool(num_workers, initializer=init_worker, initargs=(shared_dict,)) as pool:
-                    results = list(tqdm(pool.imap(process_column, non_zero_columns), total=len(non_zero_columns)))
+                    mf_results = list(tqdm(pool.imap(process_mf, non_zero_columns), total=len(non_zero_columns)))
+                
+                with Pool(num_workers, initializer=init_worker, initargs=(shared_dict,)) as pool:
+                    ace_results = list(tqdm(pool.imap(process_ace, non_zero_columns), total=len(non_zero_columns)))
+                
+                with Pool(num_workers, initializer=init_worker, initargs=(shared_dict,)) as pool:
+                    cem_results = list(tqdm(pool.imap(process_cem, non_zero_columns), total=len(non_zero_columns)))
 
-            # Store results back in arrays
-            for idx, mf_res, ace_res, cem_res in results:
+            # Store results in respective arrays
+            for idx, mf_res in mf_results:
                 mf_result[:, idx] = mf_res
+
+            for idx, ace_res in ace_results:
                 ace_result[:, idx] = ace_res
+
+            for idx, cem_res in cem_results:
                 cem_result[:, idx] = cem_res
         else:
             mf_result = create_empty_filter(hyperspectral_image)

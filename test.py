@@ -24,7 +24,7 @@ def plot_curve(ax, x, y, thresholds, x_label, y_label, title, metric_label, brea
 
 
 # Define paths
-note = "WHOLE_IMAGE_GENERATED-MAG1C"
+note = "BY_COLUMNS_STARCOP-MAG1C"
 output_data_path = os.path.join("data", note)
 output_results_path = os.path.join("outputs", note)
 os.makedirs(output_results_path, exist_ok=True)
