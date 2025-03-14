@@ -34,31 +34,31 @@ class ACEModel(nn.Module):
         denom = tmp * (M_centered * GM.T).sum(dim=1)
         
         return num / denom
-        """
-        Optimized Adaptive Coherent Estimator (ACE) using Cholesky decomposition in PyTorch.
-        """
-        """
-        # Remove mean
-        u = torch.mean(M, dim=0)
-        M_centered = M - u
-        t_centered = t - u
+    
+class CEMModel(nn.Module):
+    def __init__(self):
+        super(ACEModel, self).__init__()
 
-        # Estimate covariance matrix
-        R_hat = torch.cov(M_centered.T, correction=1)
+    def forward(self, M, t):
+        u = M.mean(dim=0)
+        M_centered = M - u  # [N, p]
+        t_centered = t - u  # [p]
+        N, p = M_centered.shape
         
-        # Cholesky decomposition
+        # Manual covariance matrix
+        R_hat = (M_centered.T @ M_centered) / (N - 1)
+        
+        # Cholesky decomposition and solves
         L = torch.linalg.cholesky(R_hat)
-        
-        # Solve for Gt and GM
-        Gt = torch.cholesky_solve(t_centered.unsqueeze(1), L).squeeze(1)  # [p]
+        Gt = torch.cholesky_solve(t_centered.unsqueeze(1), L).squeeze(1)
         GM = torch.cholesky_solve(M_centered.T, L)  # [p, N]
         
-        # Compute ACE scores
-        tmp = torch.dot(t_centered, Gt)  # Scalar
-        num = torch.matmul(t_centered, GM).pow(2)  # [N]
-        denom = tmp * (M_centered * GM.T).sum(dim=1)  # [N]
+        # Compute scores
+        tmp = torch.dot(t_centered, Gt)
+        num = torch.matmul(t_centered, GM).pow(2)
+        denom = tmp * (M_centered * GM.T).sum(dim=1)
         
-        return num / denom"""
+        return num / denom
 
 def ACE_without_cholesky(M, t):
     """
