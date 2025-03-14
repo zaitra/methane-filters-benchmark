@@ -24,7 +24,7 @@ def plot_curve(ax, x, y, thresholds, x_label, y_label, title, metric_label, brea
 
 
 # Define paths
-note = "BY_COLUMNS_STARCOP-MAG1C"
+note = "WHOLE_IMAGE_GENERATED-MAG1C"
 output_data_path = os.path.join("data", note)
 output_results_path = os.path.join("outputs", note)
 os.makedirs(output_results_path, exist_ok=True)
@@ -78,6 +78,18 @@ for f in filters:
     auprc_scores[f] = auprc
     print(f"AUPRC for {f}: {auprc:.4f}")
 
+    # Compute F1 scores
+    f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)  # Avoid division by zero
+
+    # Sort F1 scores and get top 10 indices
+    top_10_indices = np.argsort(f1_scores)[-10:][::-1]  # Get top 10 in descending order
+
+    print(f"AUPRC for {f}: {auprc:.4f}")
+    print("Top 10 thresholds and F1 scores:")
+    for idx in top_10_indices:
+        threshold = thresholds_auprc[idx] if idx < len(thresholds_auprc) else None  # Avoid index error
+        print(f"Threshold: {threshold:.4f}, F1 Score: {f1_scores[idx]:.4f}")
+
     fpr, tpr, thresholds_roc = roc_curve(ground_truths, filter_results, drop_intermediate=True)
     roc_auc = auc(fpr, tpr)
     roc_scores[f] = roc_auc
@@ -86,7 +98,7 @@ for f in filters:
     # Free memory
     del ground_truths, filter_results
         # Define breakpoints for annotation (evenly spaced recall/FPR values)
-    breakpoints = np.linspace(0, 1, 11)
+    """breakpoints = np.linspace(0, 1, 11)
 
     # Create figure with two subplots
     fig, axes = plt.subplots(2, 1, figsize=(8, 12))
@@ -107,7 +119,7 @@ for f in filters:
 
     # Save the figure
     plt.tight_layout()
-    plt.savefig(os.path.join(output_results_path,f"{f}.png"))
+    plt.savefig(os.path.join(output_results_path,f"{f}.png"))"""
     
 
 # Convert AUPRC and ROC-AUC scores to DataFrames
@@ -118,4 +130,4 @@ roc_df = pd.DataFrame.from_dict(roc_scores, orient="index", columns=["ROC-AUC"])
 combined_df = pd.concat([auprc_df, roc_df], axis=1)
 
 # Save the combined DataFrame to CSV
-combined_df.to_csv(os.path.join(output_results_path, f"scores.csv"))
+#combined_df.to_csv(os.path.join(output_results_path, f"scores.csv"))

@@ -116,12 +116,14 @@ transmittance_array = np.array(transmittance_values)
 np.save("invalid_else.npy", 0)
 np.save("invalid_mag1c.npy", 0)
 hyperspectral_image = None
+valid_mask = None
 
 
 def init_worker(shared_dict):
     """Initialize global variables inside worker processes."""
-    global hyperspectral_image
+    global hyperspectral_image, valid_mask
     hyperspectral_image = shared_dict["hyperspectral"]
+    hyperspectral_image = shared_dict["valid_mask"]
 
 # Independent filter processing functions
 def process_mf(idx):
@@ -146,7 +148,7 @@ def process_column(idx):
     )
 
 def process_tile(row):
-    global hyperspectral_image
+    global hyperspectral_image, valid_mask
     tile_id = row["id"]
     tile_input_folder = os.path.join(input_data_path, tile_id)
     tile_output_folder = os.path.join(output_data_path, tile_id)
@@ -172,22 +174,8 @@ def process_tile(row):
 
     # Stack bands to create hyperspectral image
     hyperspectral_image = np.stack(image_bands, axis=-1).astype(np.float32)
-    # Check if any element in each column is non-zero across the bands
-    non_zero_mask = np.all(np.any(hyperspectral_image != 0,axis=2),axis=0)
-    # Find the column indices where at least one element is non-zero
-    non_zero_columns = np.where(non_zero_mask)[0]
-    # Filter the hyperspectral image to only include the valid columns
-    hyperspectral_image_valid = hyperspectral_image[:, non_zero_columns, :]
-    valid_H, valid_W, valid_C = hyperspectral_image_valid.shape
-    #plt.imsave("original.png", hyperspectral_image[:,:,10])
-    #plt.imsave("cropped.png", hyperspectral_image_valid[:,:,10])
-    if valid_W == 0:
-        invalid_else = np.load("invalid_else.npy")
-        invalid_else += 1
-        np.save("invalid_else.npy", invalid_else)
-        invalid_else +=1
-        shutil.rmtree(tile_output_folder)
-        return
+    H,W,C = hyperspectral_image.shape
+    valid_mask = ~np.all(hyperspectral_image == 0, axis=-1)
 
     # Apply Matched Filter (MF), ACE, and CEM
     if CREATE_OTHER_FILTERS:
@@ -200,6 +188,7 @@ def process_tile(row):
             with Manager() as manager:
                 shared_dict = manager.dict()
                 shared_dict["hyperspectral"] = hyperspectral_image  # Shared memory for HSI data
+                shared_dict["valid_mask"] = valid_mask  # Shared memory for HSI data
 
                 # Create independent pools for MF, ACE, and CEM
                 with Pool(num_workers, initializer=init_worker, initargs=(shared_dict,)) as pool:
@@ -221,20 +210,24 @@ def process_tile(row):
             for idx, cem_res in cem_results:
                 cem_result[:, idx] = cem_res
         else:
-            mf_result = create_empty_filter(hyperspectral_image)
-            ace_result = create_empty_filter(hyperspectral_image)
-            cem_result = create_empty_filter(hyperspectral_image)
-            mf_result[:,non_zero_columns] = MatchedFilter().detect(hyperspectral_image_valid, transmittance_array)
-            ace_result[:,non_zero_columns] = ACE().detect(hyperspectral_image_valid, transmittance_array)
-            cem_result[:,non_zero_columns] = CEM().detect(hyperspectral_image_valid, transmittance_array)
-        np.save(os.path.join(tile_output_folder, "mf.npy"), mf_result)
-        np.save(os.path.join(tile_output_folder, "ace.npy"), ace_result)
-        np.save(os.path.join(tile_output_folder, "cem.npy"), cem_result)
-        del mf_result, ace_result, cem_result,
+            mf_result = create_empty_filter(hyperspectral_image).reshape((-1,C))
+            ace_result = create_empty_filter(hyperspectral_image).reshape((-1,C))
+            cem_result = create_empty_filter(hyperspectral_image).reshape((-1,C))
+            hyperspectral_image = hyperspectral_image.reshape((-1,C))
+            valid_mask = valid_mask.reshape((-1))
+            hyperspectral_image_valid = hyperspectral_image[valid_mask,:]
+            mf_result[valid_mask,:] = MatchedFilter().detect(hyperspectral_image_valid, transmittance_array)
+            ace_result[valid_mask,:] = ACE().detect(hyperspectral_image_valid, transmittance_array)
+            cem_result[valid_mask,:] = CEM().detect(hyperspectral_image_valid, transmittance_array)
+        np.save(os.path.join(tile_output_folder, "mf.npy"), mf_result.reshape((H,W)))
+        np.save(os.path.join(tile_output_folder, "ace.npy"), ace_result.reshape((H,W)))
+        np.save(os.path.join(tile_output_folder, "cem.npy"), cem_result.reshape((H,W)))
+        np.save(os.path.join(tile_output_folder, "valid_mask.npy"), valid_mask.reshape((H,W)).astype(np.uint8))
+        del mf_result, ace_result, cem_result, valid_mask
     
     label, mag1c = create_empty_filter(hyperspectral_image), create_empty_filter(hyperspectral_image)
-    label[:,non_zero_columns] = tiff.imread(os.path.join(tile_input_folder, "labelbinary.tif"))[:,non_zero_columns]
-    mag1c[:,non_zero_columns] = tiff.imread(os.path.join(tile_input_folder, "mag1c.tif"))[:,non_zero_columns]
+    label = tiff.imread(os.path.join(tile_input_folder, "labelbinary.tif"))
+    mag1c = tiff.imread(os.path.join(tile_input_folder, "mag1c.tif"))
     if CREATE_TILE_MAG1C:
         mag1c = create_empty_filter(hyperspectral_image)
         output_metadata = {
@@ -243,11 +236,11 @@ def process_tile(row):
             "fwhm": AVIRIS_FWHM_FILTERED,
         }
         name = hash_string_to_short(tile_id)
-        to_process_image = hyperspectral_image_valid if COLUMN else np.reshape(hyperspectral_image_valid, (-1, 1, valid_C))
+        to_process_image = hyperspectral_image_valid if COLUMN else np.reshape(hyperspectral_image_valid, (-1, 1, C))
         envi.save_image(
             f"{name}.hdr",
             to_process_image,
-            shape=hyperspectral_image.shape,
+            shape=to_process_image.shape,
             interleave="bil",
             metadata=output_metadata,
             force=True,
@@ -268,9 +261,7 @@ def process_tile(row):
         for f in [f for f in os.listdir("./") if name in f]:
             os.remove(f)
         mag1c_out = np.clip(mag1c_out, 0, None)
-        mag1c_out = mag1c_out if COLUMN else np.reshape(mag1c_out, (valid_H, valid_W))
-        mag1c[:,non_zero_columns] = mag1c_out
-
+        mag1c = mag1c_out if COLUMN else np.reshape(mag1c_out, (H, W))
     # Save filter outputs as NumPy arrays
     np.save(os.path.join(tile_output_folder, "label.npy"), label)
     np.save(os.path.join(tile_output_folder, "mag1c.npy"), mag1c)
