@@ -1,0 +1,10 @@
+All:
+Recall 38.355, Precision 12.752, F1 19.14
+IoU 10.583
+FPR (tile) 100.0
+Strong:
+Recall 32.365, Precision 47.905, F1 38.631
+IoU 23.939
+Weak:
+Recall 62.204, Precision 11.101, F1 18.841
+IoU 10.4
