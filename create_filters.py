@@ -44,8 +44,6 @@ def load_wavelengths_fwhm(hdr_file):
     fwhm = metadata.get("fwhm", None)
     return wavelengths, fwhm
 
-
-
 # Define paths
 note = "BY_COLUMNS_GENERATED-MAG1C"
 hdr_file = "aviris_header.hdr"
@@ -53,7 +51,8 @@ csv_path = "../starcop_big/STARCOP_allbands/test.csv"
 input_data_path = "../starcop_big/STARCOP_allbands"
 output_data_path = os.path.join("data", note)
 ch4_transmittance_file = "ang_ch4_unit_3col_425chan.txt"
-wavelengths_range = (2122, 2488)  # MAG1C range used in original STARCOP data.
+wavelengths_range = (2122, 2488)  # (2122, 2488) - MAG1C range used in original STARCOP data.
+precision = np.float64
 COLUMN = True
 USE_MAG1C_TRANSMITTANCE = True
 CREATE_TILE_MAG1C = True
@@ -128,15 +127,15 @@ def init_worker(shared_dict):
 # Independent filter processing functions
 def process_mf(idx):
     """Process a single column for Matched Filter."""
-    return idx, matched_filter(hyperspectral_image[:, idx, :], transmittance_array)
+    return idx, matched_filter(hyperspectral_image[:, idx, :][valid_mask[:,idx]], transmittance_array)
 
 def process_ace(idx):
     """Process a single column for ACE."""
-    return idx, ace(hyperspectral_image[:, idx, :], transmittance_array)
+    return idx, ace(hyperspectral_image[:, idx, :][valid_mask[:,idx]], transmittance_array)
 
 def process_cem(idx):
     """Process a single column for CEM."""
-    return idx, cem(hyperspectral_image[:, idx, :], transmittance_array)
+    return idx, cem(hyperspectral_image[:, idx, :][valid_mask[:,idx]], transmittance_array)
 
 def process_column(idx):
     """Process a single column index and return results."""
@@ -180,6 +179,7 @@ def process_tile(row):
     # Apply Matched Filter (MF), ACE, and CEM
     if CREATE_OTHER_FILTERS:
         if COLUMN:
+            non_zero_columns = np.where(np.any(valid_mask, axis=0))[0]
             mf_result = create_empty_filter(hyperspectral_image)
             ace_result = create_empty_filter(hyperspectral_image)
             cem_result = create_empty_filter(hyperspectral_image)
@@ -202,13 +202,13 @@ def process_tile(row):
 
             # Store results in respective arrays
             for idx, mf_res in mf_results:
-                mf_result[:, idx] = mf_res
+                mf_result[:, idx][valid_mask[:,idx]] = mf_res
 
             for idx, ace_res in ace_results:
-                ace_result[:, idx] = ace_res
+                ace_result[:, idx][valid_mask[:,idx]] = ace_res
 
             for idx, cem_res in cem_results:
-                cem_result[:, idx] = cem_res
+                cem_result[:, idx][valid_mask[:,idx]] = cem_res
         else:
             mf_result = create_empty_filter(hyperspectral_image).reshape((-1,C))
             ace_result = create_empty_filter(hyperspectral_image).reshape((-1,C))
