@@ -14,7 +14,7 @@ from baseline import Mag1cBaseline
 
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
 #dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
-csv_file = "/home/jherec/starcop_big/STARCOP_allbands/test.csv"
+csv_file = "/home/jherec/starcop_big/STARCOP_allbands/train.csv"
 
 ### CHANGE THIS: ###############################################################################################
 #product = "cem.tif" # Which tif file is loaded
@@ -69,7 +69,7 @@ def main(dataset_root, product_threshold):
 
         # Load products:
         mf_path = os.path.join(dataset_root, item["id"], product)
-        y_path = os.path.join(dataset_root, item["id"], "labelbinary.tif")
+        y_path = os.path.join("/home/jherec/starcop_big/STARCOP_allbands", item["id"], "labelbinary.tif")
         mask_path = os.path.join(dataset_root, item["id"], "valid_mask.tif") # used to get the validity mask
         with rio.open(mf_path) as src:
             mf_data = src.read()
@@ -159,7 +159,7 @@ def main(dataset_root, product_threshold):
     from sklearn.metrics import confusion_matrix
     dataset_v_splitted = dataset_v.split("_")
 
-    whole_image, starcop_mag1c, sped_up, bit_depth_precision, wv_range, channel_n = dataset_v_splitted
+    whole_image, starcop_mag1c, sped_up, bit_depth_precision, wv_range, channel_n, _, _ = dataset_v_splitted
     whole_image = True if "WHOLE" in whole_image.upper() else False
     starcop_mag1c = True if "STARCOP" in starcop_mag1c.upper() else False
     sped_up = True if "SPED" in sped_up else False
@@ -230,10 +230,10 @@ def main(dataset_root, product_threshold):
     return metrics_dict
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
     all_metrics = []
     if DEBUG:
-        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72"]
+        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72_EXPORT_VERSION"]
         products_threshold = [("cem.tif", 0.004)]
     else:
         dataset_roots = [
