@@ -25,11 +25,10 @@ def hash_string_to_short(input_string):
 
 def save_tiff(array, metadata, path_to_save):
     # Update metadata for saving label as TIFF
-    """metadata.update({
+    metadata.update({
         "count": 1,  # Single-band
         "dtype": array.dtype,
-        "compress": "lzw"  # Optional compression
-    })"""
+    })
 
     # Save label as GeoTIFF
     with rasterio.open(path_to_save, "w", **metadata) as dst:
@@ -61,22 +60,22 @@ CREATE_TILE_MAG1C = False
 CREATE_OTHER_FILTERS = True
 RESUME = False
 PRECISION = 64 # 64, 32, 16 However for some reason, float64 is the fastest (probably default dtype in numpy and scipy operations), most precise and stable (CEM does not handle float16) etc.
-USE_SPED_UP_VERSIONS_OF_FILTERS = True
-wavelengths_range = (1573, 2481)  # (2122, 2488) - MAG1C range used in original STARCOP data.
+USE_SPED_UP_VERSIONS_OF_FILTERS = True #No considerable difference in resulting metrics or products, but go ahead, try and verify.
+wavelengths_range = (2122, 2488)#(1573, 2481)  # (2122, 2488) - MAG1C range used in original STARCOP data.
 #Starcop data has range from 1573-2481 plus rgb 460, 550, 640 +-
 
 # Define paths
-note = "BY_COLUMNS_" if COLUMN else "WHOLE_IMAGE_"
+note = "BY-COLUMNS_" if COLUMN else "WHOLE-IMAGE_"
 note += "GENERATED-MAG1C_" if CREATE_TILE_MAG1C else "STARCOP-MAG1C_"
-note += "SPED_UP_" if USE_SPED_UP_VERSIONS_OF_FILTERS else "ORIGINAL_"
-note += str(wavelengths_range[0]) + "-" + str(wavelengths_range[1])
-note += "_PRECISION-" + str(PRECISION)
-note += "" #optional to generate more types of same dataset
+note += "SPED-UP_" if USE_SPED_UP_VERSIONS_OF_FILTERS else "ORIGINAL_"
+note += "PRECISION-" + str(PRECISION) + "_"
+note += str(wavelengths_range[0]) + "-" + str(wavelengths_range[1]) + "_"
 
 
-csv_path = "../starcop_big/STARCOP_allbands/test.csv"
+
+csv_path = "../starcop_big/STARCOP_allbands/train.csv"
 input_data_path = "../starcop_big/STARCOP_allbands"
-output_data_path = os.path.join("data", note)
+#search for output_data_path it was moved down, so the number of channels is in it
 
 if USE_SPED_UP_VERSIONS_OF_FILTERS:
     ace = ACE_optimized
@@ -141,11 +140,14 @@ if PRECISION == 16:
 
 # Convert the list of transmittance values into a numpy array
 transmittance_array = np.array(transmittance_values, dtype = DEFAULT_DTYPE)
+
+note += "CHANNEL-N-" + str(len(transmittance_array))
+note += "_EXPORT_VERSION"
 np.save("invalid_else.npy", 0)
 np.save("invalid_mag1c.npy", 0)
 hyperspectral_image = None
 valid_mask = None
-
+output_data_path = os.path.join("data", note)
 
 def init_worker(shared_dict):
     """Initialize global variables inside worker processes."""
@@ -192,7 +194,6 @@ def process_tile(row):
                 if sample_metadata is None:
                     with rasterio.open(file_path) as src:
                         sample_metadata = src.meta.copy()
-
     if not image_bands:
         print(f"Skipping {tile_id}, no valid bands found.")
         return
@@ -249,11 +250,11 @@ def process_tile(row):
         files += [mf_result, ace_result, cem_result, valid_mask]
         filepaths += ["mf", "ace", "cem", "valid_mask"]
         filepaths = [os.path.join(tile_output_folder,f"{x}.tif") for x in filepaths]
-        filetypes = [np.float64 for x in range(len(files)-1)] + [np.uint8]
+        filetypes = [np.float32 for x in range(len(files)-1)] + [np.uint8]
         save_all_reshaped_files(files, filepaths, filetypes, sample_metadata, (H,W))
         del mf_result, ace_result, cem_result, valid_mask
     
-    label = tiff.imread(os.path.join(tile_input_folder, "labelbinary.tif"))
+    """label = tiff.imread(os.path.join(tile_input_folder, "labelbinary.tif"))
     mag1c = tiff.imread(os.path.join(tile_input_folder, "mag1c.tif"))
     if CREATE_TILE_MAG1C:
         output_metadata = {
@@ -291,7 +292,7 @@ def process_tile(row):
     # Save filter output and label
     shutil.copy(os.path.join(tile_input_folder, "labelbinary.tif"), os.path.join(tile_output_folder, "labelbinary.tif"))
     save_tiff(mag1c, sample_metadata, os.path.join(tile_output_folder, "mag1c.tif"))
-    del label, mag1c
+    del label, mag1c"""
     print(f"Processed tile {tile_id}")
 
 if __name__ == "__main__":

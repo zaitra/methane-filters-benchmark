@@ -13,11 +13,11 @@ import sys
 from baseline import Mag1cBaseline
 
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
-dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
+#dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
 csv_file = "/home/jherec/starcop_big/STARCOP_allbands/test.csv"
 
 ### CHANGE THIS: ###############################################################################################
-product = "cem.tif" # Which tif file is loaded
+#product = "cem.tif" # Which tif file is loaded
 
 # Normalisation parameters
 #normalizer_params = {'offset': 0, 'factor': 1750, 'clip': (0, 2)}
@@ -26,13 +26,15 @@ normalizer_params = {'offset': 0, 'factor': 1, 'clip': (0, 1)}
 #   clamp( (input_product - offset) / factor, clip_min, clip_max)
 #   ( so for this mag1c settings it divides the values by 1750 and then clips between <0,2>
 
-threshold = 0.0038 # Which threshold is applied to it 0.0035 - CEM (probably MF also)
-baseline_model = Mag1cBaseline(mag1c_threshold = threshold, normalizer_params = normalizer_params)
+#threshold = 0.0038 # Which threshold is applied to it 0.0035 - CEM (probably MF also)
+#baseline_model = Mag1cBaseline(mag1c_threshold = threshold, normalizer_params = normalizer_params)
 
 ################################################################################################################
 def main(dataset_root, product_threshold):
     product, threshold = product_threshold
-    print(threshold, product, dataset_root.split("/")[-1])
+    baseline_model = Mag1cBaseline(mag1c_threshold = threshold, normalizer_params = normalizer_params)
+    dataset_v = dataset_root.split("/")[-1]
+    print(threshold, product, dataset_v)
     show = False
     sort_by_plume_size = False
     # for debug might be useful:
@@ -155,6 +157,24 @@ def main(dataset_root, product_threshold):
 
     # Scores:
     from sklearn.metrics import confusion_matrix
+    dataset_v_splitted = dataset_v.split("_")
+
+    whole_image, starcop_mag1c, sped_up, bit_depth_precision, wv_range, channel_n = dataset_v_splitted
+    whole_image = True if "WHOLE" in whole_image.upper() else False
+    starcop_mag1c = True if "STARCOP" in starcop_mag1c.upper() else False
+    sped_up = True if "SPED" in sped_up else False
+    bit_depth_precision = f"float{bit_depth_precision.replace("PRECISION-","")}"
+    channel_n = int(channel_n.replace("CHANNEL-N-", ""))
+    metrics_dict = {
+        "METHOD": product.replace(".tif", "").upper(),
+        "THRESHOLD": threshold,
+        "WHOLE_IMAGE": whole_image,
+        "STARCOP_MAG1C": starcop_mag1c,
+        "SPED_UP": sped_up,
+        "PRECISION": bit_depth_precision,
+        "WAVELENGTH_RANGE":wv_range,
+        "CHANNEL_N": channel_n
+        }
 
     def round_to(n, digits=3):
         if np.isnan(n): return n
@@ -173,7 +193,7 @@ def main(dataset_root, product_threshold):
         print("Recall", round_to(recall)+", Precision", round_to(precision)+", F1", round_to(f1))
         print("IoU", round_to(iou))
 
-        return recall, precision, f1
+        return tn, fp, fn, tp, recall, precision, f1, iou
 
     def tile_FPR(ground_truths, P_thresholded):
         """ FP / (FP + TN)"""
@@ -181,37 +201,67 @@ def main(dataset_root, product_threshold):
         tn, fp, fn, tp = cm.ravel()
         fpr_for_tiles = fp / (fp + tn)
         print("FPR (tile)", round_to(fpr_for_tiles))
-        return fpr_for_tiles
+        return tn, fp, fn, tp, fpr_for_tiles
+
+    def add_metrics_to_metric_dict(suffix, metrics, metrics_dict):
+        if len(metrics) > 5:
+            names = ["TN", "FP", "FN", "TP", "Recall", "Precision", "F1-score", "Iou"]
+            names = [f"{n}_{suffix}_seg" for n in names]
+        else:
+            names = ["TN", "FP", "FN", "TP", "FPR"]
+            names = [f"{n}_{suffix}_clas" for n in names]
+        names_metrics = dict(zip(names,metrics))
+        metrics_dict = metrics_dict | names_metrics
+        return metrics_dict
+
+
 
     print("All:")
-    metric_prec_recall_f1(labels.flatten(), predictions.flatten())
-    tile_FPR(labels_classification.flatten(), predictions_classification.flatten())
-
+    tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels.flatten(), predictions.flatten())
+    metrics_dict = add_metrics_to_metric_dict("all_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
+    tn, fp, fn, tp, fpr_for_tiles = tile_FPR(labels_classification.flatten(), predictions_classification.flatten())
+    metrics_dict = add_metrics_to_metric_dict("all_tile_", [tn, fp, fn, tp, fpr_for_tiles], metrics_dict)
     print("Strong:")
-    metric_prec_recall_f1(labels_strong.flatten(), predictions_strong.flatten())
+    tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels_strong.flatten(), predictions_strong.flatten())
+    metrics_dict = add_metrics_to_metric_dict("strong_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
     print("Weak:")
-    metric_prec_recall_f1(labels_weak.flatten(), predictions_weak.flatten())
+    tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels_weak.flatten(), predictions_weak.flatten())
+    metrics_dict = add_metrics_to_metric_dict("weak_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
+    return metrics_dict
 
 if __name__ == "__main__":
-    dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64",
-                     "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_2122-2488_PRECISION-64",
-                     ]
-    products_threshold = []
-    sys.stdout = io.StringIO()  # Redirect stdout to StringIO
-    for x in ["cem.tif", "mf.tif"]:
-        for i in [0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005, 0.0055, 0.006]:
-            products_threshold.append((x,i))
-    for x in ["ace.tif"]:
-        for i in [0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06]:
-            products_threshold.append((x,i))
+    DEBUG = False
+    all_metrics = []
+    if DEBUG:
+        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72"]
+        products_threshold = [("cem.tif", 0.004)]
+    else:
+        dataset_roots = [
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_1573-2481_CHANNEL-N-122",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72",
+            ]
+        products_threshold = []
+        for x in ["cem.tif", "mf.tif"]:
+            for i in [0.002, 0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005, 0.0055, 0.006]:
+                products_threshold.append((x,i))
+        for x in ["ace.tif"]:
+            for i in [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04]:
+                products_threshold.append((x,i))
+        for x in ["mag1c.tif"]:
+            for i in [500]:
+                products_threshold.append((x,i))
+    
+    
     for x in dataset_roots:
         for i in products_threshold:
-            main(x,i)
-    # Get captured output
-    output = sys.stdout.getvalue()
-    with open("results.txt", "w") as f:
-        f.write(output)
-    print("Results saved to results.txt")
+            all_metrics.append(main(x,i))
+
+    # Convert list of dicts to DataFrame and save as CSV
+    df = pd.DataFrame(all_metrics)
+    df.to_csv("metrics.csv", index=False)
+
+    print("CSV file saved successfully!")
+
         
 """
 I am getting:
