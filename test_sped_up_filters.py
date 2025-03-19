@@ -79,7 +79,7 @@ def main():
     # Shape argument
     parser.add_argument("--random", type=int, nargs=3, default=(512, 512, 50),
                         help="If not specified the path to real image, random image with specified shape will be generated, type it as H W C (default: 512 512 50)")
-    parser.add_argument("--precision", type=str_to_precision, default=32,
+    parser.add_argument("--precision", type=str_to_precision, default=64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default: 32).")
     
     args = parser.parse_args()

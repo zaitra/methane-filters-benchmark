@@ -40,7 +40,7 @@ def export_and_compare(model, dummy_input, onnx_path):
         onnx_path, 
         input_names=["input"], 
         output_names=["output"], 
-        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+        dynamic_axes=None,
         opset_version=13
     )
     print(f"Exported model to {onnx_path}")
