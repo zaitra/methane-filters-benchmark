@@ -45,72 +45,64 @@ def starcop_data_sanity_check(df,input_data_path):
 
 def select_the_bands_by_transmittance(wavelengths, ch4_transmittance, N, strategy):
     """
-    Selects N bands based on CH4 transmittance using different strategies.
+    Selects N spectral bands based on methane (CH₄) transmittance using different selection strategies.
     
-    Parameters:
+    Parameters
     ----------
-    strategy : str
-        The strategy to use for selecting bands. Can be one of:
-        - 'highest_transmittance': Select bands with the largest difference from zero in CH4 transmittance.
-        - 'highest_variance': Select bands to maximize the variance/coverage of CH4 transmittance.
-        - 'evenly_spaced': Select bands to be evenly spaced in the methane range (2122-2500 nm).
+    wavelengths : numpy.ndarray
+        1D array of available wavelengths.
     
-    Returns:
+    ch4_transmittance : numpy.ndarray
+        1D array of CH₄ transmittance values corresponding to the given wavelengths.
+    
+    N : int
+        The number of bands to select.
+    
+    strategy : str
+        The method used for selecting bands:
+        - 'highest-transmittance': Selects bands with the highest absolute transmittance.
+        - 'highest-variance': Selects bands that maximize transmittance variance across selected bands.
+        - 'evenly-spaced': Selects bands evenly spaced within the methane-sensitive wavelength range (2170-2500 nm).
+
+    Returns
     -------
     selected_wavelengths : numpy.ndarray
-        1D array of the selected wavelengths based on the chosen strategy.
+        1D array of the selected wavelengths.
     
     selected_transmittance : numpy.ndarray
-        1D array of the corresponding CH4 transmittance values for the selected wavelengths.
+        1D array of the corresponding CH₄ transmittance values.
     """
-    # Ensure wavelengths and transmittance have the same length
+    # Ensure input arrays have matching lengths
     if len(wavelengths) != len(ch4_transmittance):
-        raise ValueError("Wavelengths and transmittance must have the same length.")
-    
-    if strategy == 'highest_transmittance':
-        # Select bands with the largest difference from zero in CH4 transmittance
-        abs_transmittance = np.abs(ch4_transmittance)  # Get the absolute value of transmittance
-        sorted_indices = np.argsort(abs_transmittance)[::-1]  # Sort by largest absolute value
-        selected_indices = sorted_indices[:N]
-    
-    elif strategy == 'highest_variance':
-        # Strategy: Select bands to maximize the variance/coverage of CH4 transmittance
-        selected_indices = [np.argmax(ch4_transmittance)]  # Start with the index of the highest transmittance
-        
-        # Now, iteratively select the next N-1 bands
-        for _ in range(N - 1):
-            remaining_indices = [i for i in range(len(ch4_transmittance)) if i not in selected_indices]
-            
-            # For each remaining band, calculate the minimum difference in transmittance with the selected bands
-            variances = []
-            for i in remaining_indices:
-                min_diff = np.min(np.abs(ch4_transmittance[selected_indices] - ch4_transmittance[i]))
-                variances.append(min_diff)
-            
-            # Select the band with the maximum minimum difference
-            max_variance_index = remaining_indices[np.argmax(variances)]
-            selected_indices.append(max_variance_index)
-    
-    elif strategy == 'evenly_spaced':
-        # Filter wavelengths in the methane range (2122-2488 nm)
-        methane_range_mask = (wavelengths >= 2122) & (wavelengths <= 2500)
-        methane_wavelengths = wavelengths[methane_range_mask]
-        methane_transmittance = ch4_transmittance[methane_range_mask]
-        
-        # Get evenly spaced indices in this range
-        step = len(methane_wavelengths) // N
-        selected_indices = np.arange(0, len(methane_wavelengths), step)[:N]
-        
-        # Return selected wavelengths and transmittance
-        selected_wavelengths = methane_wavelengths[selected_indices]
-        selected_transmittance = methane_transmittance[selected_indices]
-        
-        return selected_wavelengths, selected_transmittance
-    
-    else:
-        raise ValueError("Invalid strategy. Choose 'highest_transmittance', 'highest_variance', or 'evenly_spaced'.")
+        raise ValueError("Wavelengths and transmittance arrays must have the same length.")
 
-    # Return the selected wavelengths and transmittance for the other strategies
-    selected_wavelengths = wavelengths[selected_indices]
-    selected_transmittance = ch4_transmittance[selected_indices]
-    
+    if strategy == 'highest-transmittance':
+        # Select N bands with the highest absolute transmittance values
+        selected_indices = np.argsort(np.abs(ch4_transmittance))[::-1][:N]
+
+    elif strategy == 'highest-variance':
+        # Start with the band of highest transmittance
+        selected_indices = [np.argmax(ch4_transmittance)]
+
+        # Iteratively select the next N-1 bands to maximize variance
+        for _ in range(N - 1):
+            remaining_indices = list(set(range(len(ch4_transmittance))) - set(selected_indices))
+            min_diffs = [min(np.abs(ch4_transmittance[selected_indices] - ch4_transmittance[i])) for i in remaining_indices]
+            selected_indices.append(remaining_indices[np.argmax(min_diffs)])
+
+    elif strategy == 'evenly-spaced':
+        # Filter indices within the methane-sensitive range
+        methane_mask = (wavelengths >= 2150) & (wavelengths <= 2480)
+        methane_indices = np.where(methane_mask)[0]
+
+        if N > len(methane_indices):
+            raise ValueError(f"Requested {N} bands, but only {len(methane_indices)} available in range.")
+
+        # Select N evenly spaced indices
+        selected_indices = methane_indices[np.linspace(0, len(methane_indices) - 1, N, dtype=int)]
+
+    else:
+        raise ValueError("Invalid strategy. Choose from 'highest_transmittance', 'highest_variance', or 'evenly_spaced'.")
+
+    # Final selection of wavelengths and transmittance
+    return wavelengths[selected_indices], ch4_transmittance[selected_indices]
