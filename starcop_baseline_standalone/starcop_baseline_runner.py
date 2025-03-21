@@ -208,7 +208,7 @@ def main(dataset_root, product_threshold):
         metrics_dict[f"BEST_THRESHOLD_{suffixes[idx]}"] = best_threshold
         metrics_dict[f"BEST_F1-SCORE_{suffixes[idx]}"] = f1_scores[best_idx]
         print(f"AUPRC_{suffixes[idx]}: {auprc:.4f}")
-        print(f"BEST_THRESHOLD_F1_{suffixes[idx]}: {best_threshold:.4f}, {f1_scores:.4f}")
+        print(f"BEST_THRESHOLD_F1_{suffixes[idx]}: {best_threshold:.4f}, {f1_scores[best_idx]:.4f}")
     
     def round_to(n, digits=3):
         if np.isnan(n): return n
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     DEBUG = True
     all_metrics = []
     if DEBUG:
-        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-10"]
+        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.1_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72"]
         products_threshold = [("cem.tif", 0.004)]
     else:
         dataset_roots = [

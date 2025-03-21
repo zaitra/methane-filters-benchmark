@@ -7,6 +7,7 @@ from sped_up_filters import ACE_optimized, CEM_optimized, MatchedFilterOptimized
 import os
 import spectral.io.envi as envi
 import subprocess
+from utils import AVIRIS_WAVELENGTHS, AVIRIS_FWHM
 
 
 def load_hyperspectral_image(hdr_path):
@@ -80,17 +81,30 @@ def main():
                         help="The shape of the image that will be benchmarked, type it as H W C (default: 512 512 50)")
     parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
+    # Make hdr_path and methane_spectrum optional
+    parser.add_argument("hdr_path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
+    parser.add_argument("methane_spectrum", type=str, nargs="?", default=None, help="Path to the methane spectrum numpy file (.npy).")
     
     args = parser.parse_args()
 
-    # Use random data generation if no file paths are provided
-    H, W, C = args.shape  # Unpack the shape from arguments
-    hyperspectral_img = np.random.rand(H, W, C).astype(args.precision)
-    hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,C)  # Generate random hyperspectral image
-    print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_reshaped.shape}")
-    
-    methane_spectrum = np.random.rand(C).astype(args.precision)  # Random methane spectrum
-    print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated.")
+    if args.hdr_path and args.methane_spectrum:
+        # Load hyperspectral image
+        print(f"Loading hyperspectral image from {args.hdr_path}...")
+        hyperspectral_img_filtered = load_hyperspectral_image(args.hdr_path)
+        
+        # Load methane spectrum
+        print(f"Loading methane spectrum from {args.methane_spectrum}...")
+        methane_spectrum_filtered = np.load(args.methane_spectrum).astype(args.precision)
+        hyperspectral_img_filtered = hyperspectral_img_filtered.squeeze().astype(args.precision)
+    else:
+        # Use random data generation if no file paths are provided
+        H, W, C = args.shape  # Unpack the shape from arguments
+        hyperspectral_img = np.random.uniform(1, 255, (H, W, C)).astype(args.precision)
+        hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,C)  # Generate random hyperspectral image
+        print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_reshaped.shape}")
+        
+        methane_spectrum = np.random.uniform(1, 8, (C)).astype(args.precision)  # Random methane spectrum
+        print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated.")
 
     print(f"Computing with precision: float{args.precision}")
     hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
@@ -115,11 +129,12 @@ def main():
         print(f"Computing {mag1c_type} Mag1c...")
         output_metadata = {
                 "wavelength units": "nm",
-                "wavelength": np.unique(np.random.uniform(400, 2500, C * 10))[:C].astype(args.precision).tolist(),
-                "fwhm": np.unique(np.random.uniform(1, 8, C * 10))[:C].astype(args.precision).tolist(),
+                "wavelength": AVIRIS_WAVELENGTHS[:C],
+                "fwhm": AVIRIS_FWHM[:C],
             }
         name = "mag1c_test_tile"
         to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,C)
+        print(to_process_image.shape)
         envi.save_image(
             f"{name}.hdr",
             to_process_image,
@@ -129,11 +144,11 @@ def main():
             force=True,
         )
         #The bands number selection is done in this scipr
-        args = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600)]
+        arg = ["python", "mag1c_fork/mag1c/mag1c copy.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600)]
         if mag1c_type == "Tile-wise and Sampled":
-            args += ["--sample", str(0.01)]
+            arg += ["--sample", str(0.01)]
         try:
-            result = subprocess.run(args, capture_output=True, text=True, check=True)
+            result = subprocess.run(arg, capture_output=True, text=True, check=True)
             print("MAG1C Output:")
             print(result.stdout)
         except subprocess.CalledProcessError as e:
