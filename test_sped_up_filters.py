@@ -32,7 +32,7 @@ def measure_process(name, function, hyperspectral_img, methane_spectrum):
         print("Error during computation, returning array of zeros")
         return np.zeros((hyperspectral_img.shape[0]))
 
-def test_differences(original_results, optimized_results):
+def test_differences(original_results, optimized_results, test=True):
     # Calculate the absolute differences between the original and optimized results
     if original_results.sum() > 0 and optimized_results.sum() > 0:
         diff = np.abs(original_results - optimized_results)
@@ -46,7 +46,8 @@ def test_differences(original_results, optimized_results):
         print(f"Average difference between original and optimized (sped-up) version: {avg_diff:.32f}")
 
         # Assert that the results are close within a specified tolerance
-        np.testing.assert_allclose(optimized_results, original_results, atol=0.001, rtol=1)
+        if test:
+            np.testing.assert_allclose(optimized_results, original_results, atol=0.001, rtol=1)
     else:
         print("One or both arrays are invalid, no similarity testing is done.")
 
@@ -108,7 +109,9 @@ def main():
     test_differences(CEM_original_results, CEM_optimized_results)
 
     #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
-    for mag1c_type in ["Original", "Tile-wise", "Tile-wise and Sampled"]:
+    mag1c_results = dict()
+    mag1c_types = ["Original", "Tile-wise", "Tile-wise and Sampled"]
+    for mag1c_type in mag1c_types:
         print(f"Computing {mag1c_type} Mag1c...")
         output_metadata = {
                 "wavelength units": "nm",
@@ -136,8 +139,21 @@ def main():
         except subprocess.CalledProcessError as e:
             print("Error running MAG1C:")
             print(e.stderr)
+            continue
+        mag1c_out = envi.open(f"{name}_ch4_cmfr.hdr", f"{name}_ch4_cmfr").load()[..., 3].squeeze()
+        mag1c_out = np.clip(mag1c_out, 0, None)
+        if mag1c_type != "Original":
+            mag1c_out = mag1c_out.reshape((H, W))
+        mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
+    print("Original mag1c vs Tile-based mag1c:")
+    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"])
+    print("Tile-based mag1c vs Sampled mag1c:")
+    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"])
+    print("Original mag1c vs Sampled mag1c:")
+    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"])
+    
 
 if __name__ == "__main__":
     main()
