@@ -105,7 +105,8 @@ def main():
         print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_reshaped.shape}")
         
         methane_spectrum = np.random.uniform(1, 8, (C)).astype(args.precision)  # Random methane spectrum
-        print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated.")
+        print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated."
+              )
     hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,methane_spectrum.shape[0]) 
     print(f"Computing with precision: float{args.precision}")
     hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
@@ -130,8 +131,8 @@ def main():
         print(f"Computing {mag1c_type} Mag1c...")
         output_metadata = {
                 "wavelength units": "nm",
-                "wavelength": AVIRIS_WAVELENGTHS[:C],
-                "fwhm": AVIRIS_FWHM[:C],
+                "wavelength": AVIRIS_WAVELENGTHS[:methane_spectrum.shape[0]],
+                "fwhm": AVIRIS_FWHM[:methane_spectrum.shape[0]],
             }
         name = "mag1c_test_tile"
         to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,C)
