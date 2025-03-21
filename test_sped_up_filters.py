@@ -160,7 +160,7 @@ def main():
         mag1c_out = envi.open(f"{name}_ch4_cmfr.hdr", f"{name}_ch4_cmfr").load()[..., 3].squeeze()
         mag1c_out = np.clip(mag1c_out, 0, None)
         if mag1c_type != "Original":
-            mag1c_out = mag1c_out.reshape((H, W))
+            mag1c_out = mag1c_out.reshape((hyperspectral_img.shape[0], hyperspectral_img[1]))
         mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
