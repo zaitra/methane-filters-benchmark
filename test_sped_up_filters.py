@@ -5,19 +5,23 @@ import argparse
 from pysptools.detection.detect import ACE as ACE_original, CEM as CEM_original, MatchedFilter as MatchedFilterOriginal
 from sped_up_filters import ACE_optimized, CEM_optimized, MatchedFilterOptimized
 import os
+import spectral.io.envi as envi
+import random
+import subprocess
+
 
 def load_hyperspectral_image(hdr_path):
     """Load hyperspectral image using Spectral Python (SPy)."""
     img = spy.open_image(hdr_path).load()
     return img
 
-def measure_process(name, function, hyperspectral_img_filtered, methane_spectrum_filtered):
+def measure_process(name, function, hyperspectral_img, methane_spectrum):
     try:
         print(f"Computing {name}...")
         start_time = time.time()
 
         # Compute ACE
-        result = function(hyperspectral_img_filtered, methane_spectrum_filtered)
+        result = function(hyperspectral_img, methane_spectrum)
 
         # End timing
         end_time = time.time()
@@ -27,7 +31,7 @@ def measure_process(name, function, hyperspectral_img_filtered, methane_spectrum
         return result
     except ValueError:
         print("Error during computation, returning array of zeros")
-        return np.zeros((hyperspectral_img_filtered.shape[0]))
+        return np.zeros((hyperspectral_img.shape[0]))
 
 def test_differences(original_results, optimized_results):
     # Calculate the absolute differences between the original and optimized results
@@ -71,53 +75,70 @@ def main():
     os.environ["VECLIB_MAXIMUM_THREADS"] = "4" # export VECLIB_MAXIMUM_THREADS=4
     os.environ["NUMEXPR_NUM_THREADS"] = "4" # export NUMEXPR_NUM_THREADS=6
     parser = argparse.ArgumentParser(description="Compute ACE for a given hyperspectral image.")
-    
-    # Make hdr_path and methane_spectrum optional
-    parser.add_argument("hdr_path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
-    parser.add_argument("methane_spectrum", type=str, nargs="?", default=None, help="Path to the methane spectrum numpy file (.npy).")
-    
     # Shape argument
-    parser.add_argument("--random", type=int, nargs=3, default=(512, 512, 50),
-                        help="If not specified the path to real image, random image with specified shape will be generated, type it as H W C (default: 512 512 50)")
+    parser.add_argument("--shape", type=int, nargs=3, default=(512, 512, 50),
+                        help="The shape of the image that will be benchmarked, type it as H W C (default: 512 512 50)")
     parser.add_argument("--precision", type=str_to_precision, default=64,
-                        help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default: 32).")
+                        help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     
     args = parser.parse_args()
 
-    if args.hdr_path and args.methane_spectrum:
-        # Load hyperspectral image
-        print(f"Loading hyperspectral image from {args.hdr_path}...")
-        hyperspectral_img_filtered = load_hyperspectral_image(args.hdr_path)
-        
-        # Load methane spectrum
-        print(f"Loading methane spectrum from {args.methane_spectrum}...")
-        methane_spectrum_filtered = np.load(args.methane_spectrum).astype(args.precision)
-        hyperspectral_img_filtered = hyperspectral_img_filtered.squeeze().astype(args.precision)
+    # Use random data generation if no file paths are provided
+    H, W, C = args.shape  # Unpack the shape from arguments
+    hyperspectral_img = np.random.rand(H, W, C).astype(args.precision)
+    hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,C)  # Generate random hyperspectral image
+    print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_reshaped.shape}")
     
-    else:
-        # Use random data generation if no file paths are provided
-        H, W, C = args.random  # Unpack the shape from arguments
-        hyperspectral_img_filtered = np.random.rand(H, W, C).astype(args.precision).reshape(-1,C)  # Generate random hyperspectral image
-        print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_filtered.shape}")
-        
-        methane_spectrum_filtered = np.random.rand(C).astype(args.precision)  # Random methane spectrum
-        print(f"Methane spectrum with shape {methane_spectrum_filtered.shape} was randomly generated.")
+    methane_spectrum = np.random.rand(C).astype(args.precision)  # Random methane spectrum
+    print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated.")
 
     print(f"Computing with precision: float{args.precision}")
-    hyperspectral_img_filtered = np.ascontiguousarray(hyperspectral_img_filtered, dtype=args.precision)
-    methane_spectrum_filtered = np.ascontiguousarray(methane_spectrum_filtered, dtype=args.precision)
+    hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
+    methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
 
-    ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_filtered, methane_spectrum_filtered)
-    ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_filtered, methane_spectrum_filtered)
+    ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
+    ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
     test_differences(ACE_original_results, ACE_optimized_results)
 
-    MatchedFilterOriginal_results = measure_process("MatchedFilterOriginal", MatchedFilterOriginal, hyperspectral_img_filtered, methane_spectrum_filtered)
-    MatchedFilterOptimized_results = measure_process("MatchedFilterOptimized", MatchedFilterOptimized, hyperspectral_img_filtered, methane_spectrum_filtered)
+    MatchedFilterOriginal_results = measure_process("MatchedFilterOriginal", MatchedFilterOriginal, hyperspectral_img_reshaped, methane_spectrum)
+    MatchedFilterOptimized_results = measure_process("MatchedFilterOptimized", MatchedFilterOptimized, hyperspectral_img_reshaped, methane_spectrum)
     test_differences(MatchedFilterOriginal_results, MatchedFilterOptimized_results)
 
-    CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_filtered, methane_spectrum_filtered)
-    CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_filtered, methane_spectrum_filtered)
+    CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
+    CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
     test_differences(CEM_original_results, CEM_optimized_results)
+
+    #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
+    for mag1c_type in ["Original", "Tile-wise", "Tile-wise and Sampled"]:
+        print(f"Computing {mag1c_type} Mag1c...")
+        output_metadata = {
+                "wavelength units": "nm",
+                "wavelength": np.unique(np.random.uniform(400, 2500, C * 10))[:C].astype(args.precision).tolist(),
+                "fwhm": np.unique(np.random.uniform(1, 8, C * 10))[:C].astype(args.precision).tolist(),
+            }
+        name = "mag1c_test_tile"
+        to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,C)
+        envi.save_image(
+            f"{name}.hdr",
+            to_process_image,
+            shape=to_process_image.shape,
+            interleave="bil",
+            metadata=output_metadata,
+            force=True,
+        )
+        #The bands number selection is done in this scipr
+        arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600)]
+        if mag1c_type == "Tile-wise and Sampled":
+            arg += ["--sample", str(0.01)]
+        try:
+            result = subprocess.run(args, capture_output=True, text=True, check=True)
+            print("MAG1C Output:")
+            print(result.stdout)
+        except subprocess.CalledProcessError as e:
+            print("Error running MAG1C:")
+            print(e.stderr)
+    for f in [f for f in os.listdir("./") if name in f]:
+        os.remove(f)
 
 if __name__ == "__main__":
     main()

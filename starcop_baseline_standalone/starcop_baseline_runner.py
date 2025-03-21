@@ -14,7 +14,7 @@ from baseline import Mag1cBaseline
 
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
 #dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
-csv_file = "/home/jherec/starcop_big/STARCOP_allbands/train.csv"
+csv_file = "/home/jherec/starcop_big/STARCOP_allbands/test.csv"
 
 ### CHANGE THIS: ###############################################################################################
 #product = "cem.tif" # Which tif file is loaded
@@ -45,7 +45,7 @@ def main(dataset_root, product_threshold):
     # show = True
     # sort_by_plume_size = True
 
-    df = pd.read_csv(os.path.join(dataset_root, csv_file))
+    df = pd.read_csv(csv_file)
     # optionally sort so that we get large plumes first (for visualisation)
     if sort_by_plume_size:
         df = df.sort_values(["has_plume", "qplume"], ascending=False)
@@ -56,11 +56,13 @@ def main(dataset_root, product_threshold):
     # When I doublechecked the code, what we do is not splitting by the qplume value
     # ... instead we consider a plume "weak" (/"strong") if the binary mask we made has less (/more) than 1000 pixels
     NUMBER_OF_PIXELS_PRED = 10  # ~ value we used in Starcop
-
+    predictions_weak_original = []
     predictions_weak = []
     labels_weak = []
+    predictions_strong_original = []
     predictions_strong = []
     labels_strong = []
+    predictions_noplume_original = []
     predictions_noplume = []
     labels_noplume = []
 
@@ -124,24 +126,30 @@ def main(dataset_root, product_threshold):
         mask = mask_data[0].flatten()
         gt = gt.flatten()
         pred = pred.flatten()
+        original_data = mf_data.flatten()
 
         gt_masked = []
         pred_masked = []
+        original_masked = []
         for px_idx, px_mask in enumerate(mask):
             # not efficient, I know
             if px_mask == 1: # if valid pixel
                 gt_masked.append(gt[px_idx])
                 pred_masked.append(pred[px_idx])
+                original_masked.append(original_data[px_idx])
 
         if event_type == "noplume":
             labels_noplume += gt_masked
             predictions_noplume += pred_masked
+            predictions_noplume_original += original_masked
         elif event_type == "weak":
             labels_weak += gt_masked
             predictions_weak += pred_masked
+            predictions_weak_original += original_masked
         elif event_type == "strong":
             labels_strong += gt_masked
             predictions_strong += pred_masked
+            predictions_strong_original += original_masked
 
         # Tile classification result
         # if we predict more than 10 pixels, then we assign the tile the predition that there is a plume
@@ -150,22 +158,27 @@ def main(dataset_root, product_threshold):
         labels_classification.append(int(tile_has_plume))
 
     predictions = np.asarray(predictions_strong + predictions_weak + predictions_noplume)
+    predictions_original = np.asarray(predictions_strong_original + predictions_weak_original + predictions_noplume_original)
     labels = np.asarray(labels_strong + labels_weak + labels_noplume)
+
     predictions_strong = np.asarray(predictions_strong)
+    predictions_strong_original = np.asarray(predictions_strong_original)
     labels_strong = np.asarray(labels_strong)
+
     predictions_weak = np.asarray(predictions_weak)
+    predictions_weak_original = np.asarray(predictions_weak_original)
     labels_weak = np.asarray(labels_weak)
 
     predictions_classification = np.asarray(predictions_classification)
     labels_classification = np.asarray(labels_classification)
 
     # Scores:
-    from sklearn.metrics import confusion_matrix
+    from sklearn.metrics import confusion_matrix, precision_recall_curve, auc
     dataset_v_splitted = dataset_v.split("_")
-
-    whole_image, starcop_mag1c, sped_up, bit_depth_precision, wv_range, channel_n, _, _ = dataset_v_splitted
+    whole_image, mag1c, sped_up, bit_depth_precision, wv_range, select_strategy, channel_n,= dataset_v_splitted
     whole_image = True if "WHOLE" in whole_image.upper() else False
-    starcop_mag1c = True if "STARCOP" in starcop_mag1c.upper() else False
+    sampled_percentage = 1 if "SAMPLED" not in mag1c.upper() else mag1c.split("-")[-1]
+    mag1c = "STARCOP" if "STARCOP" in mag1c.upper() else "GENERATED"
     sped_up = True if "SPED" in sped_up else False
     bit_depth_precision = f"float{bit_depth_precision.replace("PRECISION-","")}"
     channel_n = int(channel_n.replace("CHANNEL-N-", ""))
@@ -173,13 +186,30 @@ def main(dataset_root, product_threshold):
         "METHOD": product.replace(".tif", "").upper(),
         "THRESHOLD": threshold,
         "WHOLE_IMAGE": whole_image,
-        "STARCOP_MAG1C": starcop_mag1c,
+        "MAG1C": mag1c if "mag1c" in product.lower() else "-",
+        "SAMPLED": sampled_percentage if "mag1c" in product.lower() else "-",
         "SPED_UP": sped_up,
         "PRECISION": bit_depth_precision,
         "WAVELENGTH_RANGE":wv_range,
-        "CHANNEL_N": channel_n
+        "CHANNEL_N": channel_n,
+        "SELECT_STRATEGY": select_strategy
         }
+    suffixes = ["all", "strong", "weak"]
+    for idx,labels_predictions in enumerate(zip([labels, labels_strong, labels_weak],[predictions_original, predictions_strong_original, predictions_weak_original])):
+        precision, recall, thresholds_auprc = precision_recall_curve(labels_predictions[0], labels_predictions[1], drop_intermediate=True)
+        auprc = auc(recall, precision)
+        metrics_dict[f"AUPRC_{suffixes[idx]}"] = auprc
+        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)  # Avoid division by zero
+        # Find the index of the highest F1 score
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds_auprc[best_idx] if best_idx < len(thresholds_auprc) else 1.0  # Handle edge case
 
+        # Store the best threshold and its F1 score as a tuple
+        metrics_dict[f"BEST_THRESHOLD_{suffixes[idx]}"] = best_threshold
+        metrics_dict[f"BEST_F1-SCORE_{suffixes[idx]}"] = f1_scores[best_idx]
+        print(f"AUPRC_{suffixes[idx]}: {auprc:.4f}")
+        print(f"BEST_THRESHOLD_F1_{suffixes[idx]}: {best_threshold:.4f}, {f1_scores:.4f}")
+    
     def round_to(n, digits=3):
         if np.isnan(n): return n
         m = pow(10,digits)
@@ -222,37 +252,41 @@ def main(dataset_root, product_threshold):
 
     print("All:")
     tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels.flatten(), predictions.flatten())
-    metrics_dict = add_metrics_to_metric_dict("all_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
+    metrics_dict = add_metrics_to_metric_dict("all", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
     tn, fp, fn, tp, fpr_for_tiles = tile_FPR(labels_classification.flatten(), predictions_classification.flatten())
-    metrics_dict = add_metrics_to_metric_dict("all_tile_", [tn, fp, fn, tp, fpr_for_tiles], metrics_dict)
+    metrics_dict = add_metrics_to_metric_dict("all_tile", [tn, fp, fn, tp, fpr_for_tiles], metrics_dict)
     print("Strong:")
     tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels_strong.flatten(), predictions_strong.flatten())
-    metrics_dict = add_metrics_to_metric_dict("strong_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
+    metrics_dict = add_metrics_to_metric_dict("strong", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
     print("Weak:")
     tn, fp, fn, tp, recall, precision, f1, iou = metric_prec_recall_f1(labels_weak.flatten(), predictions_weak.flatten())
-    metrics_dict = add_metrics_to_metric_dict("weak_", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
+    metrics_dict = add_metrics_to_metric_dict("weak", [tn, fp, fn, tp, recall, precision, f1, iou], metrics_dict)
     return metrics_dict
 
 if __name__ == "__main__":
     DEBUG = True
     all_metrics = []
     if DEBUG:
-        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72_EXPORT_VERSION"]
+        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-10"]
         products_threshold = [("cem.tif", 0.004)]
     else:
         dataset_roots = [
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_1573-2481_CHANNEL-N-122",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_CHANNEL-N-72",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-10",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-10",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-VARIANCE_CHANNEL-N-10",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-25",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-25",
+            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-VARIANCE_CHANNEL-N-25",
             ]
         products_threshold = []
         for x in ["cem.tif", "mf.tif"]:
-            for i in [0.002, 0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005, 0.0055, 0.006]:
+            for i in [0.004]:#[0.002, 0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005, 0.0055, 0.006]:
                 products_threshold.append((x,i))
         for x in ["ace.tif"]:
-            for i in [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04]:
+            for i in [0.03]:#[0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04]:
                 products_threshold.append((x,i))
-        for x in ["mag1c.tif"]:
-            for i in [500]:
+        for x in ["mag1c_tile.tif", "mag1c_tile_sampled-0.05.tif"]:
+            for i in [300, 400, 500]:
                 products_threshold.append((x,i))
     
     

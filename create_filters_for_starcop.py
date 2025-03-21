@@ -157,7 +157,7 @@ def process_tile(row):
     tile_input_folder = os.path.join(config["input_data_path"], tile_id)
     tile_output_folder = os.path.join(config["output_data_path"], tile_id)
     os.makedirs(tile_output_folder, exist_ok=True)
-    if config["RESUME"] and set(os.listdir(tile_output_folder)) >= {"ace.tif", "cem.tif", "mf.tif", "valid_mask.tif"}:
+    if config["RESUME"] and set(os.listdir(tile_output_folder)) >= {"ace.tif", "cem.tif", "mf.tif"}:
         return
 
     # Load hyperspectral images based on wavelength range
@@ -190,6 +190,15 @@ def process_tile(row):
 
     #Missing values are coded as 0
     valid_mask = ~np.all(hyperspectral_image == 0, axis=-1)
+
+    #flatten and mask tile
+    reshaped_hyperspectral_image = hyperspectral_image.reshape((-1,C))
+    reshaped_valid_mask = valid_mask.reshape((-1))
+    reshaped_hyperspectral_image = reshaped_hyperspectral_image[reshaped_valid_mask,:]
+
+    #FOR COLUMN WISE PROCESSING - Exclude missing values column-wise, it causes errors otherwise.
+    non_zero_columns = np.where(np.all(valid_mask, axis=0))[0]
+
     files = []
     filepaths = []
 
@@ -199,8 +208,6 @@ def process_tile(row):
         ace_result = np.zeros((H, W), dtype=config["DEFAULT_DTYPE"])
         cem_result = np.zeros((H, W), dtype=config["DEFAULT_DTYPE"])
         if config["COLUMN"]:
-            #Exclude missing values column-wise, otherwise can cause errors.
-            non_zero_columns = np.where(np.all(valid_mask, axis=0))[0]
             num_workers = max(1, cpu_count() - 1)  # Use all available cores except one
             
             with Manager() as manager:
@@ -231,14 +238,10 @@ def process_tile(row):
             mf_result = mf_result.reshape((-1))
             ace_result = ace_result.reshape((-1))
             cem_result = cem_result.reshape((-1))
-            #flatten tile into one big array with shape 
-            hyperspectral_image = hyperspectral_image.reshape((-1,C))
-            valid_mask = valid_mask.reshape((-1))
-            hyperspectral_image_valid = hyperspectral_image[valid_mask,:]
-            mf_result[valid_mask] = mf(hyperspectral_image_valid, transmittance_array)
-            ace_result[valid_mask] = ace(hyperspectral_image_valid, transmittance_array)
-            cem_result[valid_mask] = cem(hyperspectral_image_valid, transmittance_array)
-        files += [mf_result, ace_result, cem_result, valid_mask]
+            mf_result[reshaped_valid_mask] = mf(reshaped_hyperspectral_image, transmittance_array)
+            ace_result[reshaped_valid_mask] = ace(reshaped_hyperspectral_image, transmittance_array)
+            cem_result[reshaped_valid_mask] = cem(reshaped_hyperspectral_image, transmittance_array)
+        files += [mf_result, ace_result, cem_result, reshaped_valid_mask]
         filepaths += ["mf", "ace", "cem", "valid_mask"]
         filepaths = [os.path.join(tile_output_folder,f"{x}.tif") for x in filepaths]
         #No difference in metrics when saving as float32 vs float64 only the precision during processing differs
@@ -256,8 +259,7 @@ def process_tile(row):
             "fwhm": config["AVIRIS_FWHM_FILTERED"],
         }
         name = hash_string_to_short(tile_id)
-        print(hyperspectral_image.shape)
-        to_process_image = hyperspectral_image if config["COLUMN"] else np.reshape(hyperspectral_image, (-1, 1, C))
+        to_process_image = hyperspectral_image[:,non_zero_columns,:] if config["COLUMN"] else reshaped_hyperspectral_image.reshape((-1,1,C))
         envi.save_image(
             f"{name}.hdr",
             to_process_image,
@@ -273,6 +275,9 @@ def process_tile(row):
             arg_2 = arg + ["--sample", str(config["SAMPLE_PERCENT"])]
             arg_list.append(arg_2)
         for args in arg_list:
+            mag1c = np.zeros((H, W), dtype=config["DEFAULT_DTYPE"])
+            if not config["COLUMN"]:
+                mag1c = mag1c.reshape((-1))
             try:
                 result = subprocess.run(args, capture_output=True, text=True, check=True)
                 print("MAG1C Output:")
@@ -284,10 +289,16 @@ def process_tile(row):
                 print("Error running MAG1C:")
                 print(e.stderr)
                 shutil.rmtree(tile_output_folder)
+                for f in [f for f in os.listdir("./") if name in f]:
+                    os.remove(f)
                 return
-            mag1c_out = envi.open(f"{name}_ch4_cmfr.hdr", f"{name}_ch4_cmfr").load()[..., 3].squeeze(-1)
+            mag1c_out = envi.open(f"{name}_ch4_cmfr.hdr", f"{name}_ch4_cmfr").load()[..., 3].squeeze()
             mag1c_out = np.clip(mag1c_out, 0, None)
-            mag1c = mag1c_out if config["COLUMN"] else np.reshape(mag1c_out, (H, W))
+            if config["COLUMN"]:
+                mag1c[:,non_zero_columns] = mag1c_out
+            else:
+                mag1c[reshaped_valid_mask] = mag1c_out
+                mag1c = mag1c.reshape((H, W))
             title = "mag1c_tile.tif"
             if "--sample" in args:
                 title = f"mag1c_tile_sampled-{config["SAMPLE_PERCENT"]}.tif"
@@ -304,15 +315,15 @@ if __name__ == "__main__":
     "COLUMN": False,
     "CREATE_TILE_MAG1C": True,
     "CREATE_SAMPLED_MAG1C": True,
-    "SAMPLE_PERCENT": 0.05, 
-    "SELECT_BANDS": True,
-    "BANDS_N": [10, 25],  # Only used if SELECT_BANDS is True
-    "STRATEGY": ['highest-transmittance', 'highest-variance', 'evenly-spaced'],  # Only used if SELECT_BANDS is True
+    "SAMPLE_PERCENT": [0.1,0.05,0.01],
+    "SELECT_BANDS": False,
+    "BANDS_N": 72,#[10, 25],  # Only used if SELECT_BANDS is True
+    "STRATEGY": None,#['highest-transmittance', 'highest-variance', 'evenly-spaced'],  # Only used if SELECT_BANDS is True
     "CREATE_OTHER_FILTERS": True,
     "RESUME": False,
     "PRECISION": 64,
     "USE_SPED_UP_VERSIONS_OF_FILTERS": True,
-    "wavelengths_range": (450, 2490),
+    "wavelengths_range": (2122, 2488),
     "csv_path": "../starcop_big/STARCOP_allbands/test.csv",
     "input_data_path": "../starcop_big/STARCOP_allbands",
     "output_data_path": "./data"
