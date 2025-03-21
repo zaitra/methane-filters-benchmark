@@ -112,7 +112,7 @@ def main():
     hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
     methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
 
-    """ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
+    ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
     ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
     test_differences(ACE_original_results, ACE_optimized_results)
 
@@ -123,13 +123,11 @@ def main():
     CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
     CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
     test_differences(CEM_original_results, CEM_optimized_results)
-"""
+
     #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
     mag1c_results = dict()
     mag1c_types = ["Original", "Tile-wise", "Tile-wise and Sampled"]
     for mag1c_type in mag1c_types:
-        if mag1c_type != "Tile-wise and Sampled":
-            continue
         print(f"Computing {mag1c_type} Mag1c...")
         output_metadata = {
                 "wavelength units": "nm",
