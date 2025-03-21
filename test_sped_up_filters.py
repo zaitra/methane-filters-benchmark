@@ -135,7 +135,7 @@ def main():
                 "fwhm": AVIRIS_FWHM[:methane_spectrum.shape[0]],
             }
         name = "mag1c_test_tile"
-        to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,C)
+        to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,methane_spectrum.shape[0])
         print(to_process_image.shape)
         envi.save_image(
             f"{name}.hdr",
