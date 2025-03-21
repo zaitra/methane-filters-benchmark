@@ -6,7 +6,6 @@ from pysptools.detection.detect import ACE as ACE_original, CEM as CEM_original,
 from sped_up_filters import ACE_optimized, CEM_optimized, MatchedFilterOptimized
 import os
 import spectral.io.envi as envi
-import random
 import subprocess
 
 
@@ -78,7 +77,7 @@ def main():
     # Shape argument
     parser.add_argument("--shape", type=int, nargs=3, default=(512, 512, 50),
                         help="The shape of the image that will be benchmarked, type it as H W C (default: 512 512 50)")
-    parser.add_argument("--precision", type=str_to_precision, default=64,
+    parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     
     args = parser.parse_args()
