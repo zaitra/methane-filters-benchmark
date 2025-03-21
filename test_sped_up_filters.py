@@ -126,9 +126,9 @@ def main():
             force=True,
         )
         #The bands number selection is done in this scipr
-        arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600)]
+        args = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600)]
         if mag1c_type == "Tile-wise and Sampled":
-            arg += ["--sample", str(0.01)]
+            args += ["--sample", str(0.01)]
         try:
             result = subprocess.run(args, capture_output=True, text=True, check=True)
             print("MAG1C Output:")
