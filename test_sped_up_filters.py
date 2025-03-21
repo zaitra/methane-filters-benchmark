@@ -84,8 +84,8 @@ def main():
     parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     # Make hdr_path and methane_spectrum optional
-    parser.add_argument("hdr_path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
-    parser.add_argument("methane_spectrum", type=str, nargs="?", default=None, help="Path to the methane spectrum numpy file (.npy).")
+    parser.add_argument("--hdr_path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
+    parser.add_argument("--methane_spectrum", type=str, nargs="?", default=None, help="Path to the methane spectrum numpy file (.npy).")
     
     args = parser.parse_args()
 
