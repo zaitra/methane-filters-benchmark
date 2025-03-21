@@ -90,12 +90,12 @@ def main():
     if args.hdr_path and args.methane_spectrum:
         # Load hyperspectral image
         print(f"Loading hyperspectral image from {args.hdr_path}...")
-        hyperspectral_img_filtered = load_hyperspectral_image(args.hdr_path)
+        hyperspectral_img = load_hyperspectral_image(args.hdr_path)
         
         # Load methane spectrum
         print(f"Loading methane spectrum from {args.methane_spectrum}...")
-        methane_spectrum_filtered = np.load(args.methane_spectrum).astype(args.precision)
-        hyperspectral_img_filtered = hyperspectral_img_filtered.squeeze().astype(args.precision)
+        methane_spectrum = np.load(args.methane_spectrum).astype(args.precision)
+        hyperspectral_img = hyperspectral_img.squeeze().astype(args.precision)
     else:
         # Use random data generation if no file paths are provided
         H, W, C = args.shape  # Unpack the shape from arguments
