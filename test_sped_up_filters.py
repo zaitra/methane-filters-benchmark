@@ -100,12 +100,11 @@ def main():
         # Use random data generation if no file paths are provided
         H, W, C = args.shape  # Unpack the shape from arguments
         hyperspectral_img = np.random.uniform(1, 255, (H, W, C)).astype(args.precision)
-        hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,C)  # Generate random hyperspectral image
         print(f"Hyperspectral image with shape {(H, W, C)} was randomly generated and reshaped into: {hyperspectral_img_reshaped.shape}")
         
         methane_spectrum = np.random.uniform(1, 8, (C)).astype(args.precision)  # Random methane spectrum
         print(f"Methane spectrum with shape {methane_spectrum.shape} was randomly generated.")
-
+    hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,methane_spectrum.shape[0]) 
     print(f"Computing with precision: float{args.precision}")
     hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
     methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
