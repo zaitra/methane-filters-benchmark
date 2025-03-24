@@ -62,7 +62,7 @@ def select_the_bands_by_transmittance(wavelengths, ch4_transmittance, N, strateg
         The method used for selecting bands:
         - 'highest-transmittance': Selects bands with the highest absolute transmittance.
         - 'highest-variance': Selects bands that maximize transmittance variance across selected bands.
-        - 'evenly-spaced': Selects bands evenly spaced within the methane-sensitive wavelength range (2170-2500 nm).
+        - 'evenly-spaced': Selects bands evenly spaced within the methane-sensitive wavelength range (2150-2480 nm).
 
     Returns
     -------

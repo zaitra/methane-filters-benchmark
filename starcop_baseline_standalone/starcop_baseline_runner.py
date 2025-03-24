@@ -38,18 +38,51 @@ def main(dataset_root, product_threshold):
         normalizer_params = {'offset': 0, 'factor': 1, 'clip': (0, 1)}
     baseline_model = Mag1cBaseline(mag1c_threshold = threshold, normalizer_params = normalizer_params)
     dataset_v = dataset_root.split("/")[-1]
-    print(threshold, product, dataset_v)
     show = False
     sort_by_plume_size = False
     # for debug might be useful:
     # show = True
     # sort_by_plume_size = True
 
+
     df = pd.read_csv(csv_file)
     # optionally sort so that we get large plumes first (for visualisation)
     if sort_by_plume_size:
         df = df.sort_values(["has_plume", "qplume"], ascending=False)
 
+    check_df = pd.read_csv("final_data_matrics.csv")
+    dataset_v_splitted = dataset_v.split("_")
+    whole_image, mag1c, sped_up, bit_depth_precision, wv_range, select_strategy, channel_n,= dataset_v_splitted
+    whole_image = True if "WHOLE" in whole_image.upper() else False
+    sampled_percentage = 1 if "SAMPLED" not in mag1c.upper() else mag1c.split("-")[-1]
+    mag1c = "STARCOP" if "STARCOP" in mag1c.upper() else "GENERATED"
+    sped_up = True if "SPED" in sped_up else False
+    bit_depth_precision = f"float{bit_depth_precision.replace("PRECISION-","")}"
+    channel_n = int(channel_n.replace("CHANNEL-N-", ""))
+    metrics_dict = {
+        "METHOD": product.replace(".tif", "").upper(),
+        "THRESHOLD": threshold,
+        "WHOLE_IMAGE": whole_image,
+        "MAG1C": mag1c if "mag1c" in product.lower() else "-",
+        "SAMPLED": sampled_percentage if "mag1c" in product.lower() else "-",
+        "SPED_UP": sped_up,
+        "PRECISION": bit_depth_precision,
+        "WAVELENGTH_RANGE":wv_range,
+        "CHANNEL_N": channel_n,
+        "SELECT_STRATEGY": select_strategy
+        }
+    
+    # Define the columns to check (same as keys in metrics_dict)
+    columns_to_check = list(metrics_dict.keys())
+
+    # Find matching row(s)
+    matching_rows = check_df[(check_df[columns_to_check] == pd.Series(metrics_dict)).all(axis=1)]
+
+    # If a match is found, extract the first row as a dictionary
+    if not matching_rows.empty:
+        existing_entry = matching_rows.iloc[0].to_dict()  # Convert first matching row to dictionary
+        print("Matching entry found:", existing_entry)
+        return existing_entry
 
     # Constants
     EASY_HARD_THRESHOLD = 1000  # This is used to differentiate between weak / stong events
@@ -174,26 +207,6 @@ def main(dataset_root, product_threshold):
 
     # Scores:
     from sklearn.metrics import confusion_matrix, precision_recall_curve, auc
-    dataset_v_splitted = dataset_v.split("_")
-    whole_image, mag1c, sped_up, bit_depth_precision, wv_range, select_strategy, channel_n,= dataset_v_splitted
-    whole_image = True if "WHOLE" in whole_image.upper() else False
-    sampled_percentage = 1 if "SAMPLED" not in mag1c.upper() else mag1c.split("-")[-1]
-    mag1c = "STARCOP" if "STARCOP" in mag1c.upper() else "GENERATED"
-    sped_up = True if "SPED" in sped_up else False
-    bit_depth_precision = f"float{bit_depth_precision.replace("PRECISION-","")}"
-    channel_n = int(channel_n.replace("CHANNEL-N-", ""))
-    metrics_dict = {
-        "METHOD": product.replace(".tif", "").upper(),
-        "THRESHOLD": threshold,
-        "WHOLE_IMAGE": whole_image,
-        "MAG1C": mag1c if "mag1c" in product.lower() else "-",
-        "SAMPLED": sampled_percentage if "mag1c" in product.lower() else "-",
-        "SPED_UP": sped_up,
-        "PRECISION": bit_depth_precision,
-        "WAVELENGTH_RANGE":wv_range,
-        "CHANNEL_N": channel_n,
-        "SELECT_STRATEGY": select_strategy
-        }
     suffixes = ["all", "strong", "weak"]
     for idx,labels_predictions in enumerate(zip([labels, labels_strong, labels_weak],[predictions_original, predictions_strong_original, predictions_weak_original])):
         precision, recall, thresholds_auprc = precision_recall_curve(labels_predictions[0], labels_predictions[1], drop_intermediate=True)
@@ -264,20 +277,34 @@ def main(dataset_root, product_threshold):
     return metrics_dict
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
     all_metrics = []
     if DEBUG:
-        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.1_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72"]
-        products_threshold = [("cem.tif", 0.004)]
+        dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72"]
+        products_threshold = [("mag1c_tile_sampled-0.01.tif", 500)]
     else:
         dataset_roots = [
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-10",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-10",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-VARIANCE_CHANNEL-N-10",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-EVENLY-SPACED_CHANNEL-N-25",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-25",
-            "/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_450-2490_SELECT-HIGHEST-VARIANCE_CHANNEL-N-25",
-            ]
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-125',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-110',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-EVENLY-SPACED_CHANNEL-N-10',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-EVENLY-SPACED_CHANNEL-N-25',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-100',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.05_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-35',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-90',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-72',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-50',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-72',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-50',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-10',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-35',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-10',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-25',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-HIGHEST-VARIANCE_CHANNEL-N-25',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-EVENLY-SPACED_CHANNEL-N-50',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.1_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72',
+            '/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_200-2600_SELECT-EVENLY-SPACED_CHANNEL-N-35']
         products_threshold = []
         for x in ["cem.tif", "mf.tif"]:
             for i in [0.004]:#[0.002, 0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005, 0.0055, 0.006]:
@@ -285,20 +312,23 @@ if __name__ == "__main__":
         for x in ["ace.tif"]:
             for i in [0.03]:#[0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04]:
                 products_threshold.append((x,i))
-        for x in ["mag1c_tile.tif", "mag1c_tile_sampled-0.05.tif"]:
-            for i in [300, 400, 500]:
+        for x in ["mag1c_tile.tif", "mag1c_tile_sampled.tif"]:
+            for i in [300]:
                 products_threshold.append((x,i))
     
     
-    for x in dataset_roots:
-        for i in products_threshold:
+    for x in tqdm(dataset_roots, total=len(dataset_roots), desc="Dataset version:"):
+        print(x.split("/")[-1])
+        for i in tqdm(products_threshold, total=len(products_threshold),desc="Product:"):
+            if "sampled" in i[0]:
+                i = (f"mag1c_tile_sampled-{x.split("/")[-1].split("_")[1].split("-")[-1]}.tif",i[1])
+            print(i)
             all_metrics.append(main(x,i))
+            #save after each row
+            df = pd.DataFrame(all_metrics)
+            df.to_csv("final_final_data_matrics.csv", index=False)
 
-    # Convert list of dicts to DataFrame and save as CSV
-    df = pd.DataFrame(all_metrics)
-    df.to_csv("metrics.csv", index=False)
-
-    print("CSV file saved successfully!")
+            print("CSV file saved successfully!")
 
         
 """

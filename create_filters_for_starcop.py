@@ -315,15 +315,15 @@ if __name__ == "__main__":
     "COLUMN": False,
     "CREATE_TILE_MAG1C": True,
     "CREATE_SAMPLED_MAG1C": True,
-    "SAMPLE_PERCENT": [0.1,0.05,0.01],
-    "SELECT_BANDS": False,
-    "BANDS_N": 72,#[10, 25],  # Only used if SELECT_BANDS is True
-    "STRATEGY": None,#['highest-transmittance', 'highest-variance', 'evenly-spaced'],  # Only used if SELECT_BANDS is True
+    "SAMPLE_PERCENT": 0.01,
+    "SELECT_BANDS": True,
+    "BANDS_N": 35,#[10, 25],  # Only used if SELECT_BANDS is True
+    "STRATEGY": ['highest-transmittance', 'evenly-spaced'],  # Only used if SELECT_BANDS is True
     "CREATE_OTHER_FILTERS": True,
     "RESUME": False,
     "PRECISION": 64,
     "USE_SPED_UP_VERSIONS_OF_FILTERS": True,
-    "wavelengths_range": (2122, 2488),
+    "wavelengths_range": (200, 2600),
     "csv_path": "../starcop_big/STARCOP_allbands/test.csv",
     "input_data_path": "../starcop_big/STARCOP_allbands",
     "output_data_path": "./data"
