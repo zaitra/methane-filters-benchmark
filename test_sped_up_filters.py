@@ -151,12 +151,14 @@ def main():
         mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
-    print("Original mag1c vs Tile-based mag1c:")
-    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"])
+    if args.compute_original_mag1c:
+        print("Original mag1c vs Tile-based mag1c:")
+        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"])
+        print("Original mag1c vs Sampled mag1c:")
+        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"])
     print("Tile-based mag1c vs Sampled mag1c:")
     test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"])
-    print("Original mag1c vs Sampled mag1c:")
-    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"])
+    
 
     # Load methane spectrum
     print(f"Loading methane spectrum for generated file from mag1c: mag1c_spectrum.npy...")
