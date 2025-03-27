@@ -96,7 +96,8 @@ def main():
     parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     # Make hdr_path and methane_spectrum optional
-    parser.add_argument("--hdr_path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
+    parser.add_argument("--hdr-path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
+    parser.add_argument('--compute-original-mag1c', action='store_true', default=False, help='Set this flag to True (default is False) if you want to compute the original column-wise mag1c.')
 
     args = parser.parse_args()
     
@@ -109,7 +110,8 @@ def main():
     print("After channel selection: ", hyperspectral_img.shape)
     #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
     mag1c_results = dict()
-    mag1c_types = ["Original", "Tile-wise", "Tile-wise and Sampled"]
+    mag1c_types = ["Original"] if args.compute_original_mag1c else []
+    mag1c_types += ["Tile-wise", "Tile-wise and Sampled"]
     for mag1c_type in mag1c_types:
         print(f"Computing {mag1c_type} Mag1c...")
         output_metadata = {
@@ -149,6 +151,12 @@ def main():
         mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
+    print("Original mag1c vs Tile-based mag1c:")
+    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"])
+    print("Tile-based mag1c vs Sampled mag1c:")
+    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"])
+    print("Original mag1c vs Sampled mag1c:")
+    test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"])
 
     # Load methane spectrum
     print(f"Loading methane spectrum for generated file from mag1c: mag1c_spectrum.npy...")
@@ -158,8 +166,9 @@ def main():
     # Use random data generation if no file paths are provided
     hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,methane_spectrum.shape[0]) 
     print(f"Computing with precision: float{args.precision}")
-    hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
-    methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
+    #hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
+    #methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
+    del hyperspectral_img, mag1c_results, mag1c_out, wavelengths, fwhm
 
     ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
     ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
