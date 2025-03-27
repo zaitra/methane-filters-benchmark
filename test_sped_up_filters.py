@@ -131,7 +131,7 @@ def main():
         #The bands number selection is done in this scipr
         arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
         if mag1c_type == "Tile-wise and Sampled":
-            arg += ["--sample", str(0.05)]
+            arg += ["--sample", str(0.01)]
         if args.precision == np.float32:
             arg += ["--single"]
         try:
