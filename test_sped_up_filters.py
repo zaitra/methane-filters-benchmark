@@ -182,9 +182,9 @@ def main():
     print(f"Computing with precision: float{args.precision}")
     #hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
     #methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
-    del hyperspectral_img, mag1c_results, mag1c_out, wavelengths, fwhm
+    del hyperspectral_img, mag1c_results, mag1c_out, wavelengths, fwhm, to_process_image, output_metadata
 
-    ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
+    #ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
     ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
     #test_differences(ACE_original_results, ACE_optimized_results)
 
