@@ -7,6 +7,23 @@ from sped_up_filters import ACE_optimized, CEM_optimized, MatchedFilterOptimized
 import os
 import spectral.io.envi as envi
 import subprocess
+import torch
+from kornia.morphology import dilation as kornia_dilation
+from kornia.morphology import erosion as kornia_erosion
+
+kernel_torch = torch.nn.Parameter(torch.from_numpy(np.array([[0, 1, 0],
+                                                             [1, 1, 1],
+                                                             [0, 1, 0]])).float(), requires_grad=False)
+
+def binary_opening(x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+    eroded = torch.clamp(kornia_erosion(x.float(), kernel), 0, 1) > 0
+    return torch.clamp(kornia_dilation(eroded.float(), kernel), 0, 1) > 0
+
+def apply_threshold(pred: torch.Tensor, threshold) -> torch.Tensor:
+    mag1c_thresholded = (pred > threshold)
+
+    # https://programtalk.com/python-more-examples/kornia.morphology.dilation.bool/
+    return binary_opening(mag1c_thresholded, kernel_torch).long()
 
 def load_hyperspectral_image(hdr_path):
     """Load hyperspectral image using Spectral Python (SPy)."""
@@ -131,7 +148,7 @@ def main():
             metadata=output_metadata,
             force=True,
         )
-        del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
+        #del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
         #The bands number selection is done in this scipr
         arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
         if mag1c_type == "Tile-wise and Sampled":
@@ -153,13 +170,6 @@ def main():
         mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
-    """if args.compute_original_mag1c:
-        print("Original mag1c vs Tile-based mag1c:")
-        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"], test=False)
-        print("Original mag1c vs Sampled mag1c:")
-        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"], test=False)
-    print("Tile-based mag1c vs Sampled mag1c:")
-    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"], test=False)"""
     
 
     # Load methane spectrum
@@ -184,6 +194,18 @@ def main():
 
     CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
     CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
+    tensor = torch.tensor(CEM_optimized_results)
+    print(f"Computing thresholding...")
+    start_time = time.time()
+
+    # Compute ACE
+    result = apply_threshold(tensor, 0.004)
+
+    # End timing
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    print(f"Computation Done! Processing time: {elapsed_time:.4f} seconds")
     #test_differences(CEM_original_results, CEM_optimized_results)
     
 
