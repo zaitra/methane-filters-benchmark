@@ -194,7 +194,7 @@ def main():
 
     CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
     CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
-    tensor = torch.tensor(CEM_optimized_results)
+    tensor = torch.tensor(CEM_optimized_results.reshape((512,512))
     print(f"Computing thresholding...")
     start_time = time.time()
 
