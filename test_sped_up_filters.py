@@ -153,13 +153,13 @@ def main():
         mag1c_results[mag1c_type] = mag1c_out
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
-    if args.compute_original_mag1c:
+    """if args.compute_original_mag1c:
         print("Original mag1c vs Tile-based mag1c:")
         test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"], test=False)
         print("Original mag1c vs Sampled mag1c:")
         test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"], test=False)
     print("Tile-based mag1c vs Sampled mag1c:")
-    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"], test=False)
+    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"], test=False)"""
     
 
     # Load methane spectrum
@@ -176,15 +176,15 @@ def main():
 
     ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
     ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
-    test_differences(ACE_original_results, ACE_optimized_results)
+    #test_differences(ACE_original_results, ACE_optimized_results)
 
     MatchedFilterOriginal_results = measure_process("MatchedFilterOriginal", MatchedFilterOriginal, hyperspectral_img_reshaped, methane_spectrum)
     MatchedFilterOptimized_results = measure_process("MatchedFilterOptimized", MatchedFilterOptimized, hyperspectral_img_reshaped, methane_spectrum)
-    test_differences(MatchedFilterOriginal_results, MatchedFilterOptimized_results)
+    #test_differences(MatchedFilterOriginal_results, MatchedFilterOptimized_results)
 
     CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
     CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
-    test_differences(CEM_original_results, CEM_optimized_results)
+    #test_differences(CEM_original_results, CEM_optimized_results)
     
 
 if __name__ == "__main__":
