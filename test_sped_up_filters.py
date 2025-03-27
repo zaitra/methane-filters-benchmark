@@ -110,6 +110,7 @@ def main():
     print("After channel selection: ", hyperspectral_img.shape)
     #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
     mag1c_results = dict()
+    print("Compute Original Mag1c: ", args.compute_original_mag1c)
     mag1c_types = ["Original"] if args.compute_original_mag1c else []
     mag1c_types += ["Tile-wise", "Tile-wise and Sampled"]
     for mag1c_type in mag1c_types:
