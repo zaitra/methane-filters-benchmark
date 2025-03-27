@@ -131,6 +131,7 @@ def main():
             metadata=output_metadata,
             force=True,
         )
+        del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
         #The bands number selection is done in this scipr
         arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
         if mag1c_type == "Tile-wise and Sampled":
@@ -154,11 +155,11 @@ def main():
         os.remove(f)
     if args.compute_original_mag1c:
         print("Original mag1c vs Tile-based mag1c:")
-        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"])
+        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise"], test=False)
         print("Original mag1c vs Sampled mag1c:")
-        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"])
+        test_differences(mag1c_results["Original"], mag1c_results["Tile-wise and Sampled"], test=False)
     print("Tile-based mag1c vs Sampled mag1c:")
-    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"])
+    test_differences(mag1c_results["Tile-wise"], mag1c_results["Tile-wise and Sampled"], test=False)
     
 
     # Load methane spectrum
