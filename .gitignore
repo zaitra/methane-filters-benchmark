@@ -1,0 +1,11 @@
+/data
+/ang20191021t171902_rdn_v2x1
+/outputs
+invalid_else.npy
+invalid_mag1c.npy
+ang20191025t171141_r10528_c126_w151_h151/
+mag1c_centers.npy
+mag1c_spectrum.npy
+test_tile*
+mag1c_test_tile*
+EMIT_L1B_RAD_001_20230428T055536_2311804_004.nc
