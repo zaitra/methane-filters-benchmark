@@ -11,10 +11,10 @@ import io
 import sys
 
 from baseline import Mag1cBaseline
-
+MODEL = True
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
 #dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
-csv_file = "/home/jherec/starcop_big/STARCOP_allbands/test.csv"
+csv_file = "/mnt/nfs/starcop_big/STARCOP_allbands/test.csv"
 
 ### CHANGE THIS: ###############################################################################################
 #product = "cem.tif" # Which tif file is loaded
@@ -108,16 +108,28 @@ def main(dataset_root, product_threshold):
 
         # Load products:
         mf_path = os.path.join(dataset_root, item["id"], product)
-        y_path = os.path.join("/home/jherec/starcop_big/STARCOP_allbands", item["id"], "labelbinary.tif")
-        mask_path = os.path.join(dataset_root, item["id"], "valid_mask.tif") # used to get the validity mask
+        y_path = os.path.join("/mnt/nfs/starcop_big/STARCOP_allbands", item["id"], "labelbinary.tif")
+        mask_path = os.path.join("/mnt/nfs/starcop_big/STARCOP_allbands", item["id"], "TOA_AVIRIS_460nm.tif") # used to get the validity mask
         with rio.open(mf_path) as src:
             mf_data = src.read()
+            if MODEL:
+                mf_data = np.clip(mf_data.astype(np.float32)/3500, 0, 2)
         with rio.open(y_path) as src:
             y_data = src.read()
         with rio.open(mask_path) as src:
             mask_data = src.read()
             mask_data = np.where(mask_data == 0, 0, 1)
-
+        if MODEL:
+            with rio.open(os.path.join("/mnt/nfs/starcop_big/STARCOP_allbands", item["id"], "TOA_AVIRIS_460nm.tif")) as src:
+                b = src.read()
+                b = np.clip(b.astype(np.float32)/60, 0, 2)
+            with rio.open(os.path.join("/mnt/nfs/starcop_big/STARCOP_allbands", item["id"], "TOA_AVIRIS_550nm.tif")) as src:
+                g = src.read()
+                g = np.clip(g.astype(np.float32)/60, 0, 2)
+            with rio.open(os.path.join("/mnt/nfs/starcop_big/STARCOP_allbands", item["id"], "TOA_AVIRIS_640nm.tif")) as src:
+                r = src.read()
+                r = np.clip(r.astype(np.float32)/60, 0, 2)
+        
         # Determine easy / hard split
         label_pixels_plume = np.sum(y_data)
         tile_has_plume = label_pixels_plume > 0
@@ -128,13 +140,18 @@ def main(dataset_root, product_threshold):
             event_type = "strong"
         if tile_has_plume and difficulty == "hard":
             event_type = "weak"
-
         # Use the pytorch lightning module
         batch = {}
-        batch["input"] = torch.tensor(mf_data).unsqueeze(0)
         batch["output"] = torch.tensor(y_data).unsqueeze(0)
+        if MODEL:
+            batch["input"] = torch.tensor(np.concatenate([mf_data,r,g,b], axis=0)).unsqueeze(0)
+            batch = baseline_model.batch_with_preds_model(batch)
+        else:
+            batch["input"] = torch.tensor(mf_data).unsqueeze(0)
+            batch = baseline_model.batch_with_preds(batch)
+        
 
-        batch = baseline_model.batch_with_preds(batch)
+        
 
         if show:
             path = os.path.join("/home/jherec/methane-filters-benchmark/outputs/trash", item["id"])
@@ -277,7 +294,7 @@ def main(dataset_root, product_threshold):
     return metrics_dict
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
     all_metrics = []
     if DEBUG:
         dataset_roots = ["/home/jherec/methane-filters-benchmark/data/WHOLE-IMAGE_TILE-AND-SAMPLED-MAG1C-0.01_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72"]

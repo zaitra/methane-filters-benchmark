@@ -4,6 +4,7 @@ from typing import Dict
 import pytorch_lightning as pl
 from kornia.morphology import dilation as kornia_dilation
 from kornia.morphology import erosion as kornia_erosion
+import onnxruntime as ort
 
 def pred_classification(pred_binary:torch.Tensor) -> torch.Tensor:
     n_pixels = (10 * np.prod(tuple(pred_binary.shape[-2:]))) / (64 ** 2)
@@ -34,6 +35,8 @@ class Mag1cBaseline(pl.LightningModule):
 
         # 'mag1c': {'offset': 0, 'factor': 1750, 'clip': (0, 2)},
         self.normalizer_params = normalizer_params
+        self.session = ort.InferenceSession("/home/jherec/methane-filters-benchmark/linknet_mag1c-sas.onnx")
+        self.input_name = self.session.get_inputs()[0].name
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         #mag1c = x[:, self.band_mag1c:(self.band_mag1c + 1)]
@@ -60,4 +63,19 @@ class Mag1cBaseline(pl.LightningModule):
         batch["pred_classification"] = pred_classification(batch["pred_binary"])
 
         return batch
+    
+    def batch_with_preds_model(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        batch = batch.copy()
+
+        batch["input_norm"] = batch["input"].numpy().astype(np.float32)
+        batch["output_norm"] = batch["output"]
+        batch["prediction"] = torch.sigmoid(torch.tensor(self.session.run(None, {self.input_name: batch["input_norm"]})[0]))
+
+        batch["pred_binary"] = batch["prediction"] > 0.5
+        batch["differences"] = differences(batch["pred_binary"], batch["output_norm"].long())
+
+        batch["pred_classification"] = pred_classification(batch["pred_binary"])
+
+        return batch
+    
 

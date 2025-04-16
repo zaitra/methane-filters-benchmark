@@ -324,8 +324,8 @@ if __name__ == "__main__":
     "PRECISION": 64,
     "USE_SPED_UP_VERSIONS_OF_FILTERS": True,
     "wavelengths_range": (2122, 2488),
-    "csv_path": "../starcop_big/STARCOP_allbands/train.csv",
-    "input_data_path": "../starcop_big/STARCOP_allbands" ,
+    "csv_path": "/mnt/nfs/starcop_big/STARCOP_allbands/train.csv",
+    "input_data_path": "/mnt/nfs/starcop_big/STARCOP_allbands" ,
     "output_data_path": "./data"
     }
     # Identify which keys have list values
