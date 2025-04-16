@@ -7,27 +7,12 @@ from sped_up_filters import ACE_optimized, CEM_optimized, MatchedFilterOptimized
 import os
 import spectral.io.envi as envi
 import subprocess
-import torch
-from kornia.morphology import dilation as kornia_dilation
-from kornia.morphology import erosion as kornia_erosion
+import sys
 
-kernel_torch = torch.nn.Parameter(torch.from_numpy(np.array([[0, 1, 0],
-                                                             [1, 1, 1],
-                                                             [0, 1, 0]])).float(), requires_grad=False)
-
-def binary_opening(x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
-    eroded = torch.clamp(kornia_erosion(x.float(), kernel), 0, 1) > 0
-    return torch.clamp(kornia_dilation(eroded.float(), kernel), 0, 1) > 0
-
-def apply_threshold(pred: torch.Tensor, threshold) -> torch.Tensor:
-    mag1c_thresholded = (pred > threshold)
-
-    # https://programtalk.com/python-more-examples/kornia.morphology.dilation.bool/
-    return binary_opening(mag1c_thresholded, kernel_torch).long()
 
 def load_hyperspectral_image(hdr_path):
     """Load hyperspectral image using Spectral Python (SPy)."""
-    
+    print(hdr_path)
     # Load the ENVI image
     img = spy.open_image(hdr_path).load()
 
@@ -101,6 +86,17 @@ def str_to_precision(value):
 
 
 def main():
+    output_path = "test_tile_512_512_125.img"
+    split_parts = sorted([f for f in os.listdir('.') if f.startswith('test_tile_512_512_125_part')])
+    # Only run this once to reconstruct
+    if not os.path.exists(output_path) and split_parts:
+        with open(output_path, 'wb') as outfile:
+            for part in split_parts:
+                with open(part, 'rb') as infile:
+                    outfile.write(infile.read())
+
+        print(f"Reconstructed {output_path}")
+    print(f"File size: {os.path.getsize(output_path) / 1024 / 1024:.2f} MB")
     os.environ["OMP_NUM_THREADS"] = "4" # export OMP_NUM_THREADS=4
     os.environ["OPENBLAS_NUM_THREADS"] = "4" # export OPENBLAS_NUM_THREADS=4 
     os.environ["MKL_NUM_THREADS"] = "4" # export MKL_NUM_THREADS=6
@@ -113,20 +109,21 @@ def main():
     parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     # Make hdr_path and methane_spectrum optional
-    parser.add_argument("--hdr-path", type=str, nargs="?", default=None, help="Path to the hyperspectral HDR file.")
+    parser.add_argument("--hdr-path", type=str, nargs="?", default="test_tile_512_512_125.hdr", help="Path to the hyperspectral HDR file.")
     parser.add_argument('--compute-original-mag1c', action='store_true', default=False, help='Set this flag to True (default is False) if you want to compute the original column-wise mag1c.')
+    parser.add_argument('--compute-original-filters', action='store_true', default=False, help='Set this flag to True (default is False) if you want to compute the original column-wise mag1c.')
 
     args = parser.parse_args()
     
     C = args.channels  # Unpack the shape from arguments
-    print(C)
     print(f"Loading hyperspectral image from {args.hdr_path}..., selected channels N: {C}")
     hyperspectral_img,  wavelengths, fwhm = load_hyperspectral_image(args.hdr_path)
     print("Initial_shape: ", hyperspectral_img.shape)
     hyperspectral_img = hyperspectral_img[:,:,:C]
     print("After channel selection: ", hyperspectral_img.shape)
+    
+    
     #To have kinda similar testing conditions, we have altered the mag1c time measurement to include only the sole filter function not preprocessing.
-    mag1c_results = dict()
     print("Compute Original Mag1c: ", args.compute_original_mag1c)
     mag1c_types = ["Original"] if args.compute_original_mag1c else []
     mag1c_types += ["Tile-wise", "Tile-wise and Sampled"]
@@ -139,7 +136,6 @@ def main():
             }
         name = "mag1c_test_tile"
         to_process_image = hyperspectral_img if mag1c_type == "Original" else hyperspectral_img.reshape(-1,1,C)
-        print(to_process_image.shape)
         envi.save_image(
             f"{name}.hdr",
             to_process_image,
@@ -148,9 +144,10 @@ def main():
             metadata=output_metadata,
             force=True,
         )
-        #del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
+        if args.compute_original_mag1c:
+            del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
         #The bands number selection is done in this scipr
-        arg = ["python", "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
+        arg = [sys.executable, "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
         if mag1c_type == "Tile-wise and Sampled":
             arg += ["--sample", str(0.01)]
         if args.precision == np.float32:
@@ -163,49 +160,70 @@ def main():
             print("Error running MAG1C:")
             print(e.stderr)
             continue
-        mag1c_out = envi.open(f"{name}_ch4_cmfr.hdr", f"{name}_ch4_cmfr").load()[..., 3].squeeze()
-        mag1c_out = np.clip(mag1c_out, 0, None)
-        if mag1c_type != "Original":
-            mag1c_out = mag1c_out.reshape((hyperspectral_img.shape[0], hyperspectral_img.shape[1]))
-        mag1c_results[mag1c_type] = mag1c_out
+        if args.compute_original_mag1c:
+            print("Original Mag1c was computed, other filters are not due to memory constraint.")
+            for f in [f for f in os.listdir("./") if name in f]:
+                os.remove(f)
+            return
     for f in [f for f in os.listdir("./") if name in f]:
         os.remove(f)
-    
 
     # Load methane spectrum
     print(f"Loading methane spectrum for generated file from mag1c: mag1c_spectrum.npy...")
     methane_spectrum = np.load("mag1c_spectrum.npy").astype(args.precision)
-    print(methane_spectrum.shape)
     hyperspectral_img = hyperspectral_img.squeeze().astype(args.precision)
-    # Use random data generation if no file paths are provided
     hyperspectral_img_reshaped = hyperspectral_img.reshape(-1,methane_spectrum.shape[0]) 
+
     print(f"Computing with precision: float{args.precision}")
-    #hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
-    #methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
-    del hyperspectral_img, mag1c_results, mag1c_out, wavelengths, fwhm, to_process_image, output_metadata
+    hyperspectral_img_reshaped = np.ascontiguousarray(hyperspectral_img_reshaped, dtype=args.precision)
+    methane_spectrum = np.ascontiguousarray(methane_spectrum, dtype=args.precision)
+    del hyperspectral_img, wavelengths, fwhm, to_process_image, output_metadata
 
-    #ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
     ACE_optimized_results = measure_process("ACE_optimized", ACE_optimized, hyperspectral_img_reshaped, methane_spectrum)
-    #test_differences(ACE_original_results, ACE_optimized_results)
+    if args.compute_original_filters:
+        ACE_original_results = measure_process("ACE_original", ACE_original, hyperspectral_img_reshaped, methane_spectrum)
+        test_differences(ACE_original_results, ACE_optimized_results)
 
-    MatchedFilterOriginal_results = measure_process("MatchedFilterOriginal", MatchedFilterOriginal, hyperspectral_img_reshaped, methane_spectrum)
     MatchedFilterOptimized_results = measure_process("MatchedFilterOptimized", MatchedFilterOptimized, hyperspectral_img_reshaped, methane_spectrum)
-    #test_differences(MatchedFilterOriginal_results, MatchedFilterOptimized_results)
+    if args.compute_original_filters:
+        MatchedFilterOriginal_results = measure_process("MatchedFilterOriginal", MatchedFilterOriginal, hyperspectral_img_reshaped, methane_spectrum)
+        test_differences(MatchedFilterOriginal_results, MatchedFilterOptimized_results)
 
-    CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
     CEM_optimized_results = measure_process("CEM_optimized", CEM_optimized, hyperspectral_img_reshaped, methane_spectrum)
+    if args.compute_original_filters:
+        CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
+        test_differences(CEM_original_results, CEM_optimized_results)
+
+    import torch
+    from kornia.morphology import dilation as kornia_dilation
+    from kornia.morphology import erosion as kornia_erosion
+
+    kernel_torch = torch.nn.Parameter(torch.from_numpy(np.array([[0, 1, 0],
+                                                                [1, 1, 1],
+                                                                [0, 1, 0]])).float(), requires_grad=False)
+
+    def binary_opening(x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+        eroded = torch.clamp(kornia_erosion(x.float(), kernel), 0, 1) > 0
+        return torch.clamp(kornia_dilation(eroded.float(), kernel), 0, 1) > 0
+
+    def apply_threshold(pred: torch.Tensor, threshold) -> torch.Tensor:
+        mag1c_thresholded = (pred > threshold)
+
+        # https://programtalk.com/python-more-examples/kornia.morphology.dilation.bool/
+        return binary_opening(mag1c_thresholded, kernel_torch).long()
+
     tensor = torch.tensor(CEM_optimized_results.reshape((1,1,512,512)))
     start_time = time.time()
 
-    # Compute ACE
+    # Compute threshold
     result = apply_threshold(tensor, 0.004)
 
     # End timing
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    print(f"Computation Done! Processing time: {elapsed_time:.4f} seconds")
-    #test_differences(CEM_original_results, CEM_optimized_results)
+    print(f"Computation of Morphological Baseline Done! Processing time: {elapsed_time:.4f} seconds")
+    
     
 
 if __name__ == "__main__":

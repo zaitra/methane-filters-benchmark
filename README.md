@@ -4,7 +4,7 @@ Welcome to the **Methane Filters Benchmark** repository! This project provides v
 
 ## Overview
 
-This repository includes several filters, with an emphasis on those optimized for faster processing times on edge devices. The file `sped_up_filters.py` contains these optimized filters, and you can test their throughput using the script `test_sped_up_filters.py`.
+This repository includes several filters, with an emphasis on those optimized for faster processing times on edge devices. The file `sped_up_filters.py` contains these optimized filters, and you can test their throughput using the script `test_sped_up_filters.py`. Besides these we also utilize Mag1c-SAS, our adjustment of Mag1c, as a submodule.
 
 ## Cloning the Repository
 
@@ -14,24 +14,14 @@ This repository includes submodules. To clone the repository along with all its 
 git clone --recursive <repository_url>
 ```
 
-## Usage
-
-To run the tests and benchmark the filters, use the following command:
+## Runtime measurement
+To run the tests and benchmark the filters using the provided test tile, use the following command:
 
 ```bash
-python test_sped_up_filters.py --random 512 512 50 --precision 64
+python test_sped_up_filters.py --hdr-path test_tile_512_512_125.hdr --channels [N_of_channels]
 ```
+you can add --compute-original-mag1c to compute the original column based mag1c.
+Remeber to run this on the target device, as the runtime on your host computer will is not relevant.
 
-### Arguments:
-- `--random` (default: `512 512 50`): If not specified, a random image with the specified shape will be generated. Provide it as Height (H), Width (W), and Channels (C).
-- `--precision` (default: `32`): Specify the precision type for floating-point numbers. Options are `16`, `32`, or `64`.
-
-## STARCOP Bands Information
-
-The wavelength information for AVIRIS-NG is sourced from the `AVIRIS_WAVELENGTHS` and `AVIRIS_FWHM` variables, which were extracted from the `ang20191021t171902_rdn_v2x1/ang20191021t171902_rdn_v2x1_img.hdr` file. This data was downloaded in March 2025 from the following URL: [AVIRIS-NG Data](https://popo.jpl.nasa.gov/avng/y19/ang20191021t171902.tar.gz).
-
-These wavelengths are also used in the STARCOP dataset and were processed through `mag1c` to generate files such as `aviris_mag1c_centers.npy` and `aviris_mag1c_spectrum.npy`.
-
-## License
-
-[Include your license details here]
+## Filter generation
+To generate the filters from the STARCOP data, use `create_filters_for_starcop.py` and set all needed variables inside the script.
