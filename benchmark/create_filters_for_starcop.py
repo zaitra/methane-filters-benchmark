@@ -69,8 +69,8 @@ def define_all():
 
     # Load CH4 transmittance data (created from mag1c)
     ch4_data = []
-    centers = np.load("aviris_mag1c_centers.npy")
-    spectrum_mag1c = np.load("aviris_mag1c_spectrum.npy")
+    centers = np.load("../resources/aviris_mag1c_centers.npy")
+    spectrum_mag1c = np.load("../resources/aviris_mag1c_spectrum.npy")
     for i in range(len(centers)):
         ch4_data.append([i,centers[i], spectrum_mag1c[i]])
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     "wavelengths_range": (2122, 2488),
     "csv_path": "/mnt/nfs/starcop_big/STARCOP_allbands/train.csv",
     "input_data_path": "/mnt/nfs/starcop_big/STARCOP_allbands" ,
-    "output_data_path": "./data"
+    "output_data_path": "../data"
     }
     # Identify which keys have list values
     list_keys = [key for key, value in config_base.items() if isinstance(value, list)]

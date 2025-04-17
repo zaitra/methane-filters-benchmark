@@ -86,8 +86,8 @@ def str_to_precision(value):
 
 
 def main():
-    output_path = "test_tile_512_512_125.img"
-    split_parts = sorted([f for f in os.listdir('.') if f.startswith('test_tile_512_512_125_part')])
+    output_path = "resources/test_tile_512_512_125.img"
+    split_parts = sorted([f for f in os.listdir('resources') if f.startswith('test_tile_512_512_125_part')])
     # Only run this once to reconstruct
     if not os.path.exists(output_path) and split_parts:
         with open(output_path, 'wb') as outfile:
@@ -109,7 +109,7 @@ def main():
     parser.add_argument("--precision", type=str_to_precision, default=np.float64,
                         help="Specify the precision type for floating point numbers. Options are 16, 32, or 64 (default is 64).")
     # Make hdr_path and methane_spectrum optional
-    parser.add_argument("--hdr-path", type=str, nargs="?", default="test_tile_512_512_125.hdr", help="Path to the hyperspectral HDR file.")
+    parser.add_argument("--hdr-path", type=str, nargs="?", default="resources/test_tile_512_512_125.hdr", help="Path to the hyperspectral HDR file.")
     parser.add_argument('--compute-original-mag1c', action='store_true', default=False, help='Set this flag to True (default is False) if you want to compute the original column-wise mag1c.')
     parser.add_argument('--compute-original-filters', action='store_true', default=False, help='Set this flag to True (default is False) if you want to compute the original column-wise mag1c.')
 
@@ -147,7 +147,7 @@ def main():
         if args.compute_original_mag1c:
             del to_process_image, hyperspectral_img, wavelengths, fwhm, output_metadata
         #The bands number selection is done in this scipr
-        arg = [sys.executable, "mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
+        arg = [sys.executable, "benchmark/mag1c_fork/mag1c/mag1c.py", f"{name}","-o", "--use-wavelength-range", str(300), str(2600), "--save-target-spectrum-centers"]
         if mag1c_type == "Tile-wise and Sampled":
             arg += ["--sample", str(0.01)]
         if args.precision == np.float32:
@@ -165,8 +165,6 @@ def main():
             for f in [f for f in os.listdir("./") if name in f]:
                 os.remove(f)
             return
-    for f in [f for f in os.listdir("./") if name in f]:
-        os.remove(f)
 
     # Load methane spectrum
     print(f"Loading methane spectrum for generated file from mag1c: mag1c_spectrum.npy...")
@@ -193,6 +191,8 @@ def main():
     if args.compute_original_filters:
         CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
         test_differences(CEM_original_results, CEM_optimized_results)
+    for f in [f for f in os.listdir("./") if "mag1c" in f]:
+        os.remove(f)
 
     import torch
     from kornia.morphology import dilation as kornia_dilation

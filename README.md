@@ -6,6 +6,8 @@ Welcome to the **Methane Filters Benchmark** repository! This project provides a
 
 This repository includes several filters, with an emphasis on those optimized for faster processing times on edge devices. The file `sped_up_filters.py` contains these optimized filters. You can test their runtime using the `test_sped_up_filters.py` script. Additionally, we incorporate **Mag1c-SAS**, a modified version of **Mag1c**, as a submodule.
 
+**Note**: Make sure to run the commands from the root directory of the methane-filters-benchmark repository. The paths are set to absolute, so you have to include the `benchmark/` prefix when running the `.py` commands.
+
 ## Cloning the Repository
 
 This repository includes submodules. To clone the repository along with all its submodules, use the following command:
@@ -19,7 +21,7 @@ git clone --recursive <repository_url>
 To run the tests and benchmark the filters using the provided test tile, use the following command:
 
 ```bash
-python test_sped_up_filters.py --channels [N_of_channels]
+python benchmark/test_sped_up_filters.py --channels [N_of_channels]
 ```
 
 You can also add the following options:
