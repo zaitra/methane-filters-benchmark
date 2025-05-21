@@ -1,0 +1,15 @@
+COLUMN: false
+CREATE_TILE_MAG1C: true
+CREATE_SAMPLED_MAG1C: true
+SAMPLE_PERCENT: 0.01
+SELECT_BANDS: false
+BANDS_N: 72
+STRATEGY: highest-transmittance
+CREATE_OTHER_FILTERS: true
+RESUME: false
+PRECISION: 64
+USE_SPED_UP_VERSIONS_OF_FILTERS: true
+wavelengths_range: [2122, 2488]
+csv_path: ./STARCOP_all_bands_one_tile/test.csv
+input_data_path: ./STARCOP_all_bands_one_tile/
+output_data_path: output_show
