@@ -195,7 +195,7 @@ def main():
     if args.compute_original_filters:
         CEM_original_results = measure_process("CEM_original", CEM_original, hyperspectral_img_reshaped, methane_spectrum)
         test_differences(CEM_original_results, CEM_optimized_results)
-    for f in [f for f in os.listdir("./") if "mag1c" in f]:
+    for f in [f for f in os.listdir("./") if "mag1c" in f and not os.path.isdir(f"./{f}")]:
         os.remove(f)
 
     import torch

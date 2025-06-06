@@ -4,15 +4,16 @@ CREATE_SAMPLED_MAG1C: true
 SAMPLE_PERCENT: 0.01
 SELECT_BANDS: false
 
-BANDS_N: 72  # Only used if SELECT_BANDS is True
-STRATEGY: highest-transmittance  # ['highest-transmittance', 'evenly-spaced'], only used if SELECT_BANDS is True
+#only used if SELECT_BANDS is True
+BANDS_N: 72  # [10, 25, 35, 50, 72, 90, 100, 110, 125]
+STRATEGY: highest-transmittance  # [highest-variance, evenly-spaced, highest-transmittance]
 
 CREATE_OTHER_FILTERS: true
 RESUME: false
 PRECISION: 64
 USE_SPED_UP_VERSIONS_OF_FILTERS: true
 
-wavelengths_range: [2122, 2488]
+wavelengths_range: [2122, 2488] #[200,2800]
 
 csv_path: /mnt/nfs/starcop_big/STARCOP_allbands/train.csv
 input_data_path: /mnt/nfs/starcop_big/STARCOP_allbands

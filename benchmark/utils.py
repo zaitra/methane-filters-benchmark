@@ -75,6 +75,9 @@ def select_the_bands_by_transmittance(wavelengths, ch4_transmittance, N, strateg
     # Ensure input arrays have matching lengths
     if len(wavelengths) != len(ch4_transmittance):
         raise ValueError("Wavelengths and transmittance arrays must have the same length.")
+    
+    if N > len(wavelengths):
+        raise ValueError("The number of bands to be selected is greater than number of bands provided.")
 
     if strategy == 'highest-transmittance':
         # Select N bands with the highest absolute transmittance values

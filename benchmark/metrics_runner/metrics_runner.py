@@ -11,7 +11,7 @@ import io
 import sys
 
 from baseline import Mag1cBaseline
-MODEL = True
+MODEL = False
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
 #dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
 csv_file = "/mnt/nfs/starcop_big/STARCOP_allbands/test.csv"
@@ -346,26 +346,3 @@ if __name__ == "__main__":
             df.to_csv("final_final_data_matrics.csv", index=False)
 
             print("CSV file saved successfully!")
-
-        
-"""
-I am getting:
-
-All:
-Recall 58.422, Precision 30.574, F1 40.141
-IoU 25.11
-FPR (tile) 75.428
-
-Strong:
-Recall 59.844, Precision 77.41, F1 67.503
-IoU 50.947
-
-Weak:
-Recall 52.76, Precision 32.149, F1 39.953
-IoU 24.963
-
-Which matches what I am reporting in my thesis:
-                 AUPRC ↑ F1 ↑  (strong) (weak)  Prec. ↑ Rec. ↑ IoU ↑  FPR ↓
-MF thr. baseline N/A     40.14   67.50   39.95  30.57   58.42  25.11  75.43
-
-"""
