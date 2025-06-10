@@ -2,7 +2,7 @@
 
 <img src="resources/filters_visualization.png" alt="Filters Visualization" width="800"/>
 
-Welcome to the **Methane Filters Benchmark** repository! This project provides a suite of filters designed to benchmark and compare their performance, with a focus on optimizing them for edge devices.
+Welcome to the **Methane Filters Benchmark** repository! This project provides a suite of methane filters designed to benchmark and compare their performance, with a focus on optimizing them for low-power edge devices. In addition to traditional filters we also explore use of machine learning models for filter output refinement.
 
 ## Notebook Demos
 
@@ -24,11 +24,9 @@ git clone --recursive <repository_url>
 
 ## Overview
 
-This repository includes several filters, with an emphasis on those optimized for faster processing times on edge devices. The file `sped_up_filters.py` contains these optimized filters. You can test their runtime using the `test_sped_up_filters.py` script. Additionally, we incorporate **Mag1c-SAS**, a modified version of **Mag1c**, as a submodule.
+The accelerated traditional filters are to be found in file `sped_up_filters.py`, whereas the **Mag1c-SAS**, a modified version of **Mag1c**, is included as a submodule in `benchmark/mag1c_fork`. You can test their runtime using the `test_sped_up_filters.py` script.
 
 **Note**: Make sure to run the commands from the root directory of the methane-filters-benchmark repository. The paths are set to absolute, so you have to include the `benchmark/` prefix when running the `.py` commands.
-
-
 
 ## Runtime Measurement
 
@@ -42,7 +40,9 @@ You can also add the following options:
 - `--compute-original-mag1c` to compute the original column-based Mag1c.
 - `--compute-original-filters` to also run the original versions of the filters.
 
-**Note**: Be sure to run this on the target edge device, as the runtime on your host computer is not representative of edge device performance.
+Be sure to run this on the target edge device, as the runtime on your host computer is not representative of edge device performance.
+
+**Note**: The ML models runtime was measured by `benchmark/onnx_inference_time.py` script.
 
 ## Filter Generation
 
