@@ -9,6 +9,7 @@ mag1c_spectrum.npy
 mag1c_test_tile*
 EMIT_L1B_RAD_001_20230428T055536_2311804_004.nc
 test_tile_512_512_125.img
+test_tile_512_512_125.hdr
 __pycache__
 STARCOP_all_bands_one_tile
 output_show

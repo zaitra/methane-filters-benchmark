@@ -30,6 +30,7 @@ def define_all():
     ####################### SETTINGS ###############################
     COLUMN = config["COLUMN"]
     CREATE_TILE_MAG1C = config["CREATE_TILE_MAG1C"]
+    CREATE_SAMPLED_MAG1C = False
     if CREATE_TILE_MAG1C:
         CREATE_SAMPLED_MAG1C = config["CREATE_SAMPLED_MAG1C"]
         if CREATE_SAMPLED_MAG1C:

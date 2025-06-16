@@ -1,4 +1,4 @@
 [submodule "benchmark/mag1c_fork"]
 	path = benchmark/mag1c_fork
-	url = git@github.com:zaitra/mag1c.git
-	branch = sampled
+	url = https://github.com/zaitra/mag1c.git
+	branch = master
