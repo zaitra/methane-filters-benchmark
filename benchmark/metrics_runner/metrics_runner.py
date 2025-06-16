@@ -15,6 +15,12 @@ MODEL = False
 # Download the dataset from https://zenodo.org/records/7863343 or https://huggingface.co/datasets/previtus/STARCOP_allbands_Eval
 #dataset_root = "/home/jherec/methane-filters-benchmark/data/WHOLE_IMAGE_STARCOP-MAG1C_SPED_UP_1573-2481_PRECISION-64"
 csv_file = "/mnt/nfs/starcop_big/STARCOP_allbands/test.csv"
+output_csv = "final_data_matrics.csv"
+if not os.path.exists(output_csv):
+    # Create an empty DataFrame
+    empty_df = pd.DataFrame(columns=["col1", "col2", "col3"])
+    # Save it to CSV
+    empty_df.to_csv(output_csv, index=False)
 
 ### CHANGE THIS: ###############################################################################################
 #product = "cem.tif" # Which tif file is loaded
@@ -50,7 +56,7 @@ def main(dataset_root, product_threshold):
     if sort_by_plume_size:
         df = df.sort_values(["has_plume", "qplume"], ascending=False)
 
-    check_df = pd.read_csv("final_data_matrics.csv")
+    check_df = pd.read_csv(output_csv)
     dataset_v_splitted = dataset_v.split("_")
     whole_image, mag1c, sped_up, bit_depth_precision, wv_range, select_strategy, channel_n,= dataset_v_splitted
     whole_image = True if "WHOLE" in whole_image.upper() else False
@@ -76,13 +82,14 @@ def main(dataset_root, product_threshold):
     columns_to_check = list(metrics_dict.keys())
 
     # Find matching row(s)
-    matching_rows = check_df[(check_df[columns_to_check] == pd.Series(metrics_dict)).all(axis=1)]
+    if not check_df.empty:
+        matching_rows = check_df[(check_df[columns_to_check] == pd.Series(metrics_dict)).all(axis=1)]
 
-    # If a match is found, extract the first row as a dictionary
-    if not matching_rows.empty:
-        existing_entry = matching_rows.iloc[0].to_dict()  # Convert first matching row to dictionary
-        print("Matching entry found:", existing_entry)
-        return existing_entry
+        # If a match is found, extract the first row as a dictionary
+        if not matching_rows.empty:
+            existing_entry = matching_rows.iloc[0].to_dict()  # Convert first matching row to dictionary
+            print("Matching entry found:", existing_entry)
+            return existing_entry
 
     # Constants
     EASY_HARD_THRESHOLD = 1000  # This is used to differentiate between weak / stong events
@@ -343,6 +350,6 @@ if __name__ == "__main__":
             all_metrics.append(main(x,i))
             #save after each row
             df = pd.DataFrame(all_metrics)
-            df.to_csv("final_final_data_matrics.csv", index=False)
+            df.to_csv(output_csv, index=False)
 
             print("CSV file saved successfully!")

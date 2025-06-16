@@ -17,4 +17,4 @@ wavelengths_range: [2122, 2488] #[200,2800]
 
 csv_path: /mnt/nfs/starcop_big/STARCOP_allbands/train.csv
 input_data_path: /mnt/nfs/starcop_big/STARCOP_allbands
-output_data_path: ../data
+output_data_path: ./data
