@@ -62,20 +62,4 @@ class Mag1cBaseline(pl.LightningModule):
 
         return batch
     
-    def batch_with_preds_model(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        self.session = ort.InferenceSession("/home/jherec/methane-filters-benchmark/linknet_mag1c-sas.onnx")
-        self.input_name = self.session.get_inputs()[0].name
-        batch = batch.copy()
-
-        batch["input_norm"] = batch["input"].numpy().astype(np.float32)
-        batch["output_norm"] = batch["output"]
-        batch["prediction"] = torch.sigmoid(torch.tensor(self.session.run(None, {self.input_name: batch["input_norm"]})[0]))
-
-        batch["pred_binary"] = batch["prediction"] > 0.5
-        batch["differences"] = differences(batch["pred_binary"], batch["output_norm"].long())
-
-        batch["pred_classification"] = pred_classification(batch["pred_binary"])
-
-        return batch
-    
 
