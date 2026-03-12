@@ -9,6 +9,7 @@ CREATE_OTHER_FILTERS: true
 RESUME: false
 PRECISION: 64
 USE_SPED_UP_VERSIONS_OF_FILTERS: true
+USE_MULTIPLICATIVE_RELATIONSHIP: true
 wavelengths_range: [2122, 2488]
 csv_path: ./STARCOP_all_bands_one_tile/test.csv
 input_data_path: ./STARCOP_all_bands_one_tile/
