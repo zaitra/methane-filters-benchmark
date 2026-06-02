@@ -1,0 +1,21 @@
+STARCOP: false
+PRELOADED_MODEL_INFERENCE: false
+USE_MORPHOLOGICAL_BASELINE: true
+DATASET_PATH: /home/jherec/emit-dataset/data_selected_50_evenly_spaced
+LABEL_NAME: label.npy
+MASK_NAME: valid_mask.tif
+LOGIT_TO_PROBABILITIES: false
+csv_file: /home/jherec/emit-dataset/dataset_info.csv
+NUMBER_OF_PIXELS_PRED: 50
+expand_dim_of_mf: false
+expand_dim_of_y_data: true
+output_csv: emit_mag1c_sas_metrics.csv
+
+dataset_roots:
+  - /home/jherec/emit-dataset/hf_staging/selected_50_bands_evenly_spaced
+  - /home/jherec/emit-dataset/hf_staging/selected_50_bands_highest_transmittance
+  - /home/jherec/emit-dataset/hf_staging/selected_50_bands_highest_variance
+
+products_threshold:
+  - ["mag1c_sas.tif", 1200]
+  - ["mag1c_sas_tiling.tif", 1200]

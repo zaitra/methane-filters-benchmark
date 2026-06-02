@@ -44,6 +44,8 @@ def define_all():
     RESUME = config["RESUME"]
     PRECISION = config["PRECISION"]
     USE_SPED_UP_VERSIONS_OF_FILTERS = config["USE_SPED_UP_VERSIONS_OF_FILTERS"]
+    USE_MULTIPLICATIVE_RELATIONSHIP = config["USE_MULTIPLICATIVE_RELATIONSHIP"]
+    config["use_addition"] = not USE_MULTIPLICATIVE_RELATIONSHIP
     wavelengths_range = config["wavelengths_range"]
     
     csv_path = config["csv_path"]
@@ -146,11 +148,17 @@ def init_worker(shared_dict):
 # Independent filter processing functions
 def process_mf(idx):
     """Process a single column for Matched Filter."""
-    return idx, mf(hyperspectral_image[:, idx, :][valid_mask[:,idx]], transmittance_array)
+    data = hyperspectral_image[:, idx, :][valid_mask[:,idx]]
+    if config["USE_SPED_UP_VERSIONS_OF_FILTERS"]:
+        return idx, mf(data, transmittance_array, addition=config["use_addition"])
+    return idx, mf(data, transmittance_array)
 
 def process_ace(idx):
     """Process a single column for ACE."""
-    return idx, ace(hyperspectral_image[:, idx, :][valid_mask[:,idx]], transmittance_array)
+    data = hyperspectral_image[:, idx, :][valid_mask[:,idx]]
+    if config["USE_SPED_UP_VERSIONS_OF_FILTERS"]:
+        return idx, ace(data, transmittance_array, addition=config["use_addition"])
+    return idx, ace(data, transmittance_array)
 
 def process_cem(idx):
     """Process a single column for CEM."""
@@ -162,7 +170,7 @@ def process_tile(row):
     tile_input_folder = os.path.join(config["input_data_path"], tile_id)
     tile_output_folder = os.path.join(config["output_data_path"], tile_id)
     os.makedirs(tile_output_folder, exist_ok=True)
-    if config["RESUME"] and set(os.listdir(tile_output_folder)) >= {"ace.tif", "cem.tif", "mf.tif"}:
+    if config["RESUME"] and set(os.listdir(tile_output_folder)) >= {"ace.tif", "mf.tif"}: #"cem.tif", 
         return
 
     # Load hyperspectral images based on wavelength range
@@ -243,8 +251,12 @@ def process_tile(row):
             mf_result = mf_result.reshape((-1))
             ace_result = ace_result.reshape((-1))
             cem_result = cem_result.reshape((-1))
-            mf_result[reshaped_valid_mask] = mf(reshaped_hyperspectral_image, transmittance_array)
-            ace_result[reshaped_valid_mask] = ace(reshaped_hyperspectral_image, transmittance_array)
+            if config["USE_SPED_UP_VERSIONS_OF_FILTERS"]:
+                mf_result[reshaped_valid_mask] = mf(reshaped_hyperspectral_image, transmittance_array, addition=config["use_addition"])
+                ace_result[reshaped_valid_mask] = ace(reshaped_hyperspectral_image, transmittance_array, addition=config["use_addition"])
+            else:
+                mf_result[reshaped_valid_mask] = mf(reshaped_hyperspectral_image, transmittance_array)
+                ace_result[reshaped_valid_mask] = ace(reshaped_hyperspectral_image, transmittance_array)
             cem_result[reshaped_valid_mask] = cem(reshaped_hyperspectral_image, transmittance_array)
         files += [mf_result, ace_result, cem_result, reshaped_valid_mask]
         filepaths += ["mf", "ace", "cem", "valid_mask"]
@@ -311,7 +323,7 @@ def process_tile(row):
         for f in [f for f in os.listdir("./") if name in f]:
             os.remove(f)
     # Save filter output and label
-    shutil.copy(os.path.join(tile_input_folder, "labelbinary.tif"), os.path.join(tile_output_folder, "labelbinary.tif"))
+    #shutil.copy(os.path.join(tile_input_folder, "labelbinary.tif"), os.path.join(tile_output_folder, "labelbinary.tif"))
     del label, mag1c
     print(f"Processed tile {tile_id}")
 

@@ -13,3 +13,13 @@ test_tile_512_512_125.hdr
 __pycache__
 STARCOP_all_bands_one_tile
 output_show
+benchmark/emit_deployment/visualizations_statistics/*.csv
+benchmark/emit_deployment/visualizations_statistics/*.pdf
+benchmark/emit_deployment/visualizations_statistics/*.png
+benchmark/emit_deployment/visualizations_statistics/*.tex
+/tacr
+upload_to_hf.py
+data_corrected/
+channel_n.pdf
+comparison_plot.pdf
+select_strategy.pdf

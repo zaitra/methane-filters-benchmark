@@ -1,0 +1,40 @@
+STARCOP: true
+PRELOADED_MODEL_INFERENCE: false
+USE_MORPHOLOGICAL_BASELINE: true
+DATASET_PATH: /mnt/nfs/starcop_big/STARCOP_allbands
+LABEL_NAME: labelbinary.tif
+MASK_NAME: TOA_AVIRIS_460nm.tif
+LOGIT_TO_PROBABILITIES: false
+csv_file: /mnt/nfs/starcop_big/STARCOP_allbands/test.csv
+NUMBER_OF_PIXELS_PRED: 5
+expand_dim_of_mf: false
+expand_dim_of_y_data: false
+output_csv: starcop_metrics.csv
+
+dataset_roots:
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-EVENLY-SPACED_CHANNEL-N-10
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-EVENLY-SPACED_CHANNEL-N-25
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-EVENLY-SPACED_CHANNEL-N-35
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-EVENLY-SPACED_CHANNEL-N-50
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-10
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-25
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-35
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-50
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-TRANSMITTANCE_CHANNEL-N-72
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-10
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-100
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-110
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-125
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-25
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-35
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-50
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-72
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_200-2800_SELECT-HIGHEST-VARIANCE_CHANNEL-N-90
+  - /home/jherec/methane-filters-benchmark/data_corrected/WHOLE-IMAGE_STARCOP-MAG1C_SPED-UP_PRECISION-64_2122-2488_SELECT-ALL_CHANNEL-N-72
+
+products_threshold:
+  - ["mf.tif", 0.004]
+  - ["cem.tif", 0.004]
+  - ["ace.tif", 0.03]
+  - ["mag1c_tile.tif", 300]
+  - ["mag1c_tile_sampled.tif", 300]
