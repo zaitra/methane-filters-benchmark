@@ -15,17 +15,17 @@ See the preliminary conference results [here](https://github.com/zaitra/methane-
 - **Updated CSVs**: Re-measured runtime of all filters on the Xiphos Q8J and added metrics for the new multiplicative MF and ACE variants. Results in `csvs/`.
 - **Code update and refactoring**: Moved hardcoded parameters to YAML configs and CLI arguments across the codebase -- `benchmark/metrics_runner/metrics_runner.py` (configs in `benchmark/metrics_runner/cfg/`), `benchmark/create_filters_for_starcop.py` (`USE_MULTIPLICATIVE_RELATIONSHIP` in `benchmark/cfg/classic.yaml`), and `benchmark/test_sped_up_filters.py` (`--repetitions`, `--no-sleep`, `--channels`, `--measure-morphological-baseline`). Regenerated visualizations in `playbook.ipynb` with the updated data.
 
-## Citation [![ArXiv:2507.01472](https://img.shields.io/badge/arXiv-2507.01472-blue)](https://doi.org/10.48550/arXiv.2507.01472)
+## Citation [![arXiv:2606.03675](https://img.shields.io/badge/arXiv-2606.03675-blue)](https://doi.org/10.48550/arXiv.2606.03675)
 If you find our research useful, please cite our article:
 ```bibtex
-@misc{herec2025optimizingmethanedetectionboard,
-      title={Optimizing Methane Detection On Board Satellites: Speed, Accuracy, and Low-Power Solutions for Resource-Constrained Hardware}, 
-      author={Jonáš Herec and Vít Růžička and Rado Pitoňák},
-      year={2025},
-      eprint={2507.01472},
+@misc{herec2026fastmethanedetectionpipeline,
+      title={A Fast Methane Detection Pipeline on Board Satellites Based on Mag1c-SAS and LinkNet}, 
+      author={Jonáš Herec and Vít Růžička and Rado Pitoňák and Jan Sedmidubsky},
+      year={2026},
+      eprint={2606.03675},
       archivePrefix={arXiv},
       primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2507.01472}, 
+      url={https://arxiv.org/abs/2606.03675}, 
 }
 ```
 
